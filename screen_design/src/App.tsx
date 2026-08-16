@@ -4,7 +4,8 @@ import {
   Trash2, Download, UploadCloud, AlertCircle, CheckCircle2,
   Globe, Moon, Building2, GraduationCap, BookMarked,
   Search, ArrowUpDown, ChevronUp, ChevronDown, Filter, RotateCcw,
-  ChevronRight, AlertTriangle, FileText
+  ChevronRight, AlertTriangle, FileText, Eye, Layers,
+  Info, ShieldCheck
 } from 'lucide-react';
 
 
@@ -34,6 +35,9 @@ interface Curriculum {
   name: string;
   code: string;
   departmentId: string;
+  coverFile?: string;
+  coverSize?: string;
+  coverUpdatedAt?: string;
 }
 
 export interface ProcessingError {
@@ -64,14 +68,35 @@ const INITIAL_DEPARTMENTS: Department[] = [
 ];
 
 const INITIAL_CURRICULUMS: Curriculum[] = [
-  { id: '1', name: 'Computer Science', code: 'CS', departmentId: '1' },
-  { id: '2', name: 'Mathematics', code: 'MATH', departmentId: '1' },
-  { id: '3', name: 'Electrical Engineering', code: 'EE', departmentId: '2' }
+  { 
+    id: '1', 
+    name: 'Computer Science', 
+    code: 'CS', 
+    departmentId: '1', 
+    coverFile: 'CS_Curriculum_Cover_2024.pdf', 
+    coverSize: '240 KB', 
+    coverUpdatedAt: '14/10/2024 15:30' 
+  },
+  { 
+    id: '2', 
+    name: 'Mathematics', 
+    code: 'MATH', 
+    departmentId: '1',
+    coverFile: 'MATH_Curriculum_Cover.pdf',
+    coverSize: '185 KB',
+    coverUpdatedAt: '12/09/2024 11:20'
+  },
+  { 
+    id: '3', 
+    name: 'Electrical Engineering', 
+    code: 'EE', 
+    departmentId: '2' 
+  }
 ];
 
 // --- MOCK DATA ---
 const MOCK_COURSES = [
-  { id: 'CS101', name: 'Introduction to Computer Science', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1', coverFile: 'cover.pdf', coverSize: '240 KB' },
+  { id: 'CS101', name: 'Introduction to Computer Science', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
   { id: 'MATH205', name: 'Calculus and Linear Algebra', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: '2024', semester: '1' },
   { id: 'CS102', name: 'Data Structures and Algorithms', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '2' },
   { id: 'EE101', name: 'Circuit Theory I', department: 'Electrical Engineering', curriculum: 'Electrical Engineering', year: '2024', semester: '2' }
@@ -944,36 +969,12 @@ const CourseManagement = ({
   const [editingCurriculum, setEditingCurriculum] = useState('');
   const [editingYear, setEditingYear] = useState('2024');
   const [editingSemester, setEditingSemester] = useState('1');
-  const [editingCoverFile, setEditingCoverFile] = useState<{ name: string; size: string } | null>(null);
-  const [isDraggingCover, setIsDraggingCover] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Selection states
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<any>(null);
-
-  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setEditingCoverFile({
-        name: file.name,
-        size: `${(file.size / 1024).toFixed(1)} KB`
-      });
-    }
-  };
-
-  const handleCoverDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingCover(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      setEditingCoverFile({
-        name: file.name,
-        size: `${(file.size / 1024).toFixed(1)} KB`
-      });
-    }
-  };
 
   const toggleSemester = (sem: string) => {
     if (selectedSemesters.includes(sem)) {
@@ -1070,7 +1071,6 @@ const CourseManagement = ({
     setEditingCurriculum(course.curriculum || '');
     setEditingYear(course.year || selectedYear);
     setEditingSemester(course.semester || '1');
-    setEditingCoverFile(course.coverFile ? { name: course.coverFile, size: course.coverSize || '240 KB' } : null);
     setActiveCreationMethod('single');
     setIsAddModalOpen(true);
   };
@@ -1084,7 +1084,6 @@ const CourseManagement = ({
     setEditingCurriculum('');
     setEditingYear(selectedYear);
     setEditingSemester(selectedSemesters.length === 1 ? selectedSemesters[0] : '1');
-    setEditingCoverFile(null);
     setActiveCreationMethod('single');
     setBulkFileUploaded(false);
     setBulkFileName('');
@@ -1114,8 +1113,6 @@ const CourseManagement = ({
           curriculum: editingCurriculum,
           year: editingYear,
           semester: editingSemester,
-          coverFile: editingCoverFile ? editingCoverFile.name : undefined,
-          coverSize: editingCoverFile ? editingCoverFile.size : undefined,
         } : c));
         if (editingId.trim().toUpperCase() !== editingCourse.id) {
           setFiles(files.map(f => f.courseId === editingCourse.id ? { ...f, courseId: editingId.trim().toUpperCase() } : f));
@@ -1128,8 +1125,6 @@ const CourseManagement = ({
           curriculum: editingCurriculum,
           year: editingYear,
           semester: editingSemester,
-          coverFile: editingCoverFile ? editingCoverFile.name : undefined,
-          coverSize: editingCoverFile ? editingCoverFile.size : undefined,
         }]);
       }
       setIsAddModalOpen(false);
@@ -1348,12 +1343,18 @@ const CourseManagement = ({
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           <div className="flex items-center gap-2">
                             <span>{course.name}</span>
-                            {course.coverFile && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-700 bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 rounded" title={`Cover PDF: ${course.coverFile}`}>
-                                <FileText size={11} className="text-rose-500" />
-                                <span>cover.pdf</span>
-                              </span>
-                            )}
+                            {(() => {
+                              const parentCurr = curriculums.find(c => c.name === course.curriculum);
+                              if (parentCurr?.coverFile) {
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded" title={`Shared Cover: ${parentCurr.coverFile} (${parentCurr.name})`}>
+                                    <FileText size={11} className="text-indigo-500" />
+                                    <span>{parentCurr.code} Cover</span>
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -1674,88 +1675,6 @@ const CourseManagement = ({
                   </select>
                 </div>
               </div>
-
-              {/* Course Cover PDF Upload (Optional) */}
-              <div className="pt-2">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Course Cover PDF <span className="font-mono text-xs text-gray-500 font-normal">(cover.pdf)</span>
-                  </label>
-                  <span className="text-[11px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                    Optional
-                  </span>
-                </div>
-
-                {editingCoverFile ? (
-                  <div className="flex items-center justify-between p-3 bg-rose-50/50 border border-rose-200 rounded-xl">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 bg-rose-100 text-rose-700 rounded-lg shrink-0">
-                        <FileText size={20} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
-                          {editingCoverFile.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {editingCoverFile.size} • Ready as course cover
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      <label 
-                        className="px-2.5 py-1 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 cursor-pointer transition-colors shadow-xs"
-                        title="Choose another PDF file"
-                      >
-                        Change
-                        <input 
-                          type="file" 
-                          accept=".pdf,application/pdf" 
-                          onChange={handleCoverFileChange} 
-                          className="hidden" 
-                        />
-                      </label>
-                      <button 
-                        type="button"
-                        onClick={() => setEditingCoverFile(null)} 
-                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Remove cover PDF"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div 
-                    onDragOver={(e) => { e.preventDefault(); setIsDraggingCover(true); }}
-                    onDragLeave={() => setIsDraggingCover(false)}
-                    onDrop={handleCoverDrop}
-                    className={`relative border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer group ${
-                      isDraggingCover 
-                        ? 'border-indigo-500 bg-indigo-50/40' 
-                        : 'border-gray-300 bg-gray-50/50 hover:bg-indigo-50/20 hover:border-indigo-300'
-                    }`}
-                  >
-                    <input 
-                      type="file" 
-                      accept=".pdf,application/pdf" 
-                      onChange={handleCoverFileChange} 
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                    />
-                    <div className="space-y-1">
-                      <div className="mx-auto w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors">
-                        <FileText size={18} />
-                      </div>
-                      <p className="text-xs font-medium text-gray-700">
-                        <span className="text-indigo-600 font-semibold">Click to upload</span> or drag and drop <span className="font-mono text-gray-600 font-medium">cover.pdf</span>
-                      </p>
-                      <p className="text-[11px] text-gray-400">
-                        Upload custom course cover sheet (PDF only)
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -1863,6 +1782,937 @@ const CourseManagement = ({
             </p>
           )}
         </div>
+      </Modal>
+    </div>
+  );
+};
+
+const CoverManagement = ({
+  curriculums,
+  setCurriculums,
+  departments,
+  courses
+}: {
+  curriculums: Curriculum[];
+  setCurriculums: React.Dispatch<React.SetStateAction<Curriculum[]>>;
+  departments: Department[];
+  courses: any[];
+}) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [sortField, setSortField] = useState<string>('code');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Selection
+  const [selectedCurrIds, setSelectedCurrIds] = useState<string[]>([]);
+
+  // Modal States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalCurrId, setModalCurrId] = useState<string>('');
+  const [isFixedCurriculum, setIsFixedCurriculum] = useState(false);
+  const [modalFile, setModalFile] = useState<{ name: string; size: string } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Preview and Delete modals
+  const [previewCurr, setPreviewCurr] = useState<Curriculum | null>(null);
+  const [deleteConfirmCurr, setDeleteConfirmCurr] = useState<Curriculum | null>(null);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+
+  // Toast
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
+
+  const showToast = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const getCoursesForCurriculum = (currName: string) => {
+    return courses.filter(c => c.curriculum === currName);
+  };
+
+  const toggleDepartment = (deptId: string) => {
+    if (selectedDepartments.includes(deptId)) {
+      setSelectedDepartments(selectedDepartments.filter(d => d !== deptId));
+    } else {
+      setSelectedDepartments([...selectedDepartments, deptId]);
+    }
+  };
+
+  const toggleStatus = (status: string) => {
+    if (selectedStatuses.includes(status)) {
+      setSelectedStatuses(selectedStatuses.filter(s => s !== status));
+    } else {
+      setSelectedStatuses([...selectedStatuses, status]);
+    }
+  };
+
+  const clearAllFilters = () => {
+    setSelectedDepartments([]);
+    setSelectedStatuses([]);
+    setSearchQuery('');
+  };
+
+  const hasActiveFilters = selectedDepartments.length > 0 || selectedStatuses.length > 0 || searchQuery !== '';
+
+  // Filtered & Sorted Curriculums
+  const filteredCurriculums = curriculums.filter(curr => {
+    const dept = departments.find(d => d.id === curr.departmentId);
+    const deptName = dept ? dept.name.toLowerCase() : '';
+    const query = searchQuery.toLowerCase();
+
+    const matchesSearch = (
+      curr.name.toLowerCase().includes(query) ||
+      curr.code.toLowerCase().includes(query) ||
+      deptName.includes(query) ||
+      (curr.coverFile && curr.coverFile.toLowerCase().includes(query))
+    );
+
+    const matchesDept = selectedDepartments.length === 0 || selectedDepartments.includes(curr.departmentId);
+
+    const matchesStatus = (
+      selectedStatuses.length === 0 ||
+      (selectedStatuses.includes('has_cover') && !!curr.coverFile) ||
+      (selectedStatuses.includes('no_cover') && !curr.coverFile)
+    );
+
+    return matchesSearch && matchesDept && matchesStatus;
+  });
+
+  const sortedCurriculums = [...filteredCurriculums].sort((a, b) => {
+    let aVal: any = '';
+    let bVal: any = '';
+
+    if (sortField === 'code') {
+      aVal = a.code;
+      bVal = b.code;
+    } else if (sortField === 'name') {
+      aVal = a.name;
+      bVal = b.name;
+    } else if (sortField === 'department') {
+      aVal = departments.find(d => d.id === a.departmentId)?.name || '';
+      bVal = departments.find(d => d.id === b.departmentId)?.name || '';
+    } else if (sortField === 'courses') {
+      aVal = getCoursesForCurriculum(a.name).length;
+      bVal = getCoursesForCurriculum(b.name).length;
+    } else if (sortField === 'cover') {
+      aVal = a.coverFile || '';
+      bVal = b.coverFile || '';
+    } else if (sortField === 'time') {
+      aVal = a.coverUpdatedAt || '';
+      bVal = b.coverUpdatedAt || '';
+    }
+
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    if (selectedCurrIds.includes(id)) {
+      setSelectedCurrIds(selectedCurrIds.filter(item => item !== id));
+    } else {
+      setSelectedCurrIds([...selectedCurrIds, id]);
+    }
+  };
+
+  const handleSelectAllToggle = () => {
+    if (selectedCurrIds.length === sortedCurriculums.length && sortedCurriculums.length > 0) {
+      setSelectedCurrIds([]);
+    } else {
+      setSelectedCurrIds(sortedCurriculums.map(c => c.id));
+    }
+  };
+
+  const handleOpenUpload = (curr?: Curriculum) => {
+    setErrorMsg('');
+    if (curr) {
+      setModalCurrId(curr.id);
+      setIsFixedCurriculum(true);
+      setModalFile(curr.coverFile ? { name: curr.coverFile, size: curr.coverSize || '240 KB' } : null);
+    } else {
+      setModalCurrId(curriculums[0]?.id || '');
+      setIsFixedCurriculum(false);
+      setModalFile(null);
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+        setErrorMsg('Please select a valid PDF file (.pdf)');
+        return;
+      }
+      setErrorMsg('');
+      setModalFile({
+        name: file.name,
+        size: `${(file.size / 1024).toFixed(1)} KB`
+      });
+    }
+  };
+
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+        setErrorMsg('Please select a valid PDF file (.pdf)');
+        return;
+      }
+      setErrorMsg('');
+      setModalFile({
+        name: file.name,
+        size: `${(file.size / 1024).toFixed(1)} KB`
+      });
+    }
+  };
+
+  const handleSaveCover = () => {
+    const targetCurr = curriculums.find(c => c.id === modalCurrId);
+    if (!targetCurr) {
+      setErrorMsg('Please select a curriculum.');
+      return;
+    }
+    if (!modalFile) {
+      setErrorMsg('Please upload a PDF cover sheet file.');
+      return;
+    }
+
+    const now = new Date();
+    const timeStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    setCurriculums(curriculums.map(c => c.id === targetCurr.id ? {
+      ...c,
+      coverFile: modalFile.name,
+      coverSize: modalFile.size,
+      coverUpdatedAt: timeStr
+    } : c));
+
+    setIsModalOpen(false);
+    showToast(`Cover PDF saved for ${targetCurr.name}.`);
+  };
+
+  const handleExecuteDeleteSingle = () => {
+    if (!deleteConfirmCurr) return;
+    const name = deleteConfirmCurr.name;
+    setCurriculums(curriculums.map(c => c.id === deleteConfirmCurr.id ? {
+      ...c,
+      coverFile: undefined,
+      coverSize: undefined,
+      coverUpdatedAt: undefined
+    } : c));
+    setDeleteConfirmCurr(null);
+    showToast(`Cover removed from ${name}.`, 'info');
+  };
+
+  const handleExecuteBulkDelete = () => {
+    setCurriculums(curriculums.map(c => selectedCurrIds.includes(c.id) ? {
+      ...c,
+      coverFile: undefined,
+      coverSize: undefined,
+      coverUpdatedAt: undefined
+    } : c));
+    setSelectedCurrIds([]);
+    setIsBulkDeleteOpen(false);
+    showToast(`Covers removed from selected curriculums.`, 'info');
+  };
+
+  const selectedWithCovers = curriculums.filter(c => selectedCurrIds.includes(c.id) && !!c.coverFile);
+  const activeTargetCurr = curriculums.find(c => c.id === modalCurrId);
+
+  return (
+    <div className="p-6 space-y-6 w-full">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium ${
+            toastMessage.type === 'error'
+              ? 'bg-red-50 text-red-800 border-red-200'
+              : toastMessage.type === 'info'
+              ? 'bg-blue-50 text-blue-800 border-blue-200'
+              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          }`}>
+            {toastMessage.type === 'error' ? (
+              <AlertCircle size={18} className="text-red-600 shrink-0" />
+            ) : toastMessage.type === 'info' ? (
+              <Info size={18} className="text-blue-600 shrink-0" />
+            ) : (
+              <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+            )}
+            <span>{toastMessage.text}</span>
+            <button 
+              onClick={() => setToastMessage(null)} 
+              className="ml-2 text-gray-400 hover:text-gray-600 p-0.5 rounded"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Top Header: Title + Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Cover Management</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Manage standard course cover PDFs by curriculum. All courses under the same curriculum share the same cover.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {selectedWithCovers.length > 0 && (
+            <button 
+              onClick={() => setIsBulkDeleteOpen(true)} 
+              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm transition-colors shadow-sm whitespace-nowrap"
+            >
+              <Trash2 size={16} className="mr-2" /> Remove Covers ({selectedWithCovers.length})
+            </button>
+          )}
+
+          <button 
+            onClick={() => handleOpenUpload()} 
+            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm whitespace-nowrap"
+          >
+            <Plus size={16} className="mr-2" /> Upload Cover PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Main Layout: Table on Left (flex-1), Multi-Select Filter Panel on Right (w-72) */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Left Area: Search Bar + Table */}
+        <div className="flex-1 w-full min-w-0 space-y-4">
+          {/* Search Bar + Results Status */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search curriculum code, name, department, cover..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
+              />
+            </div>
+            <div className="text-xs text-gray-500 px-2 whitespace-nowrap">
+              Showing <span className="font-semibold text-gray-900">{sortedCurriculums.length}</span> curriculum{sortedCurriculums.length === 1 ? '' : 's'}
+            </div>
+          </div>
+
+          {/* Curriculums & Covers Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="w-12 px-6 py-3 text-left">
+                      <input
+                        type="checkbox"
+                        checked={selectedCurrIds.length === sortedCurriculums.length && sortedCurriculums.length > 0}
+                        onChange={handleSelectAllToggle}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </th>
+                    <th 
+                      onClick={() => handleSort('code')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Code
+                        {sortField === 'code' ? (
+                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ArrowUpDown size={12} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('name')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Curriculum Name
+                        {sortField === 'name' ? (
+                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ArrowUpDown size={12} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('department')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Department
+                        {sortField === 'department' ? (
+                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ArrowUpDown size={12} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('cover')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Cover PDF
+                        {sortField === 'cover' ? (
+                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ArrowUpDown size={12} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('time')}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Updated Time
+                        {sortField === 'time' ? (
+                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ArrowUpDown size={12} className="text-gray-400" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sortedCurriculums.map((curr) => {
+                    const dept = departments.find(d => d.id === curr.departmentId);
+                    const isSelected = selectedCurrIds.includes(curr.id);
+
+                    return (
+                      <tr 
+                        key={curr.id}
+                        onClick={() => handleToggleSelect(curr.id)}
+                        className={`hover:bg-gray-50 transition-colors cursor-pointer ${
+                          isSelected ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : ''
+                        }`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            checked={isSelected} 
+                            onChange={() => handleToggleSelect(curr.id)}
+                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-700">
+                          <span className="bg-indigo-50 px-2.5 py-1 rounded-md text-xs tracking-wider uppercase">
+                            {curr.code}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {curr.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {dept?.name || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {curr.coverFile ? (
+                            <div className="flex items-center gap-2">
+                              <div className="p-1 bg-rose-50 text-rose-600 rounded shrink-0">
+                                <FileText size={15} />
+                              </div>
+                              <span 
+                                className="font-medium text-gray-900 text-xs cursor-help"
+                                title={curr.coverFile}
+                              >
+                                {curr.coverFile.length > 15 
+                                  ? `${curr.coverFile.slice(0, 15)}...` 
+                                  : curr.coverFile}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs italic">No Cover</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {curr.coverUpdatedAt ? (
+                            <div className="flex items-center text-xs text-gray-500">
+                              <CheckCircle2 size={12} className="mr-1 text-gray-400" />
+                              {curr.coverUpdatedAt}
+                            </div>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" onClick={(e) => e.stopPropagation()}>
+                          {curr.coverFile && (
+                            <>
+                              <button 
+                                onClick={() => setPreviewCurr(curr)}
+                                className="text-gray-600 hover:text-indigo-900 bg-gray-50 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors inline-flex items-center"
+                                title="Preview Cover PDF"
+                              >
+                                <Eye size={14} />
+                              </button>
+                              <button 
+                                onClick={() => showToast(`Downloading ${curr.coverFile}...`)}
+                                className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
+                                title="Download PDF"
+                              >
+                                <Download size={14} />
+                              </button>
+                            </>
+                          )}
+                          <button 
+                            onClick={() => handleOpenUpload(curr)}
+                            className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
+                            title={curr.coverFile ? "Replace Cover PDF" : "Upload Cover PDF"}
+                          >
+                            <UploadCloud size={14} />
+                          </button>
+                          {curr.coverFile && (
+                            <button 
+                              onClick={() => setDeleteConfirmCurr(curr)}
+                              className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
+                              title="Remove Cover"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {sortedCurriculums.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="text-center py-8 text-gray-500 italic">
+                        No curriculums found matching your search and filter criteria.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Area: Multi-Select Filter Panel Sidebar */}
+        <div className="w-full lg:w-72 shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-6 sticky top-6">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+            <div className="flex items-center gap-2 text-gray-900 font-semibold text-sm">
+              <Filter size={16} className="text-indigo-600" />
+              <span>Filters</span>
+            </div>
+            {hasActiveFilters && (
+              <button 
+                onClick={clearAllFilters}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
+              >
+                <RotateCcw size={12} /> Clear all
+              </button>
+            )}
+          </div>
+
+          {/* Department Filter */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Department
+            </label>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {departments.map((dept) => {
+                const isChecked = selectedDepartments.includes(dept.id);
+                const count = curriculums.filter(c => c.departmentId === dept.id).length;
+                return (
+                  <label 
+                    key={dept.id} 
+                    className="flex items-center justify-between p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
+                  >
+                    <div className="flex items-center min-w-0 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleDepartment(dept.id)}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <span className="ml-2 text-gray-700 truncate" title={dept.name}>
+                        {dept.name}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full shrink-0">
+                      {count}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Cover Status Filter */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Cover Status
+            </label>
+            <div className="space-y-1.5">
+              {[
+                { id: 'has_cover', label: 'Cover Uploaded', count: curriculums.filter(c => !!c.coverFile).length },
+                { id: 'no_cover', label: 'Missing Cover', count: curriculums.filter(c => !c.coverFile).length },
+              ].map(status => {
+                const isChecked = selectedStatuses.includes(status.id);
+                return (
+                  <label 
+                    key={status.id} 
+                    className="flex items-center justify-between p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
+                  >
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleStatus(status.id)}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <span className="ml-2 text-gray-700">{status.label}</span>
+                    </div>
+                    <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                      {status.count}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload / Replace Cover Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={isFixedCurriculum && activeTargetCurr ? `Upload Cover PDF - ${activeTargetCurr.name}` : "Upload Curriculum Cover PDF"}
+        maxWidth="max-w-xl"
+        footer={
+          <>
+            <button 
+              onClick={() => setIsModalOpen(false)} 
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleSaveCover} 
+              disabled={!modalFile}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Save Cover
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {errorMsg && (
+            <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm flex items-start border border-red-100">
+              <AlertCircle size={16} className="mt-0.5 mr-2 shrink-0" />
+              <p>{errorMsg}</p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Target Curriculum</label>
+            {isFixedCurriculum && activeTargetCurr ? (
+              <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 font-medium flex items-center justify-between shadow-2xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono bg-indigo-100 text-indigo-700 text-xs px-2.5 py-0.5 rounded font-bold uppercase shrink-0">
+                    {activeTargetCurr.code}
+                  </span>
+                  <span className="truncate">{activeTargetCurr.name}</span>
+                </div>
+                <span className="text-xs text-gray-500 bg-gray-200/70 px-2 py-0.5 rounded shrink-0 ml-2">
+                  {departments.find(d => d.id === activeTargetCurr.departmentId)?.name || 'No Dept'}
+                </span>
+              </div>
+            ) : (
+              <select
+                value={modalCurrId}
+                onChange={(e) => setModalCurrId(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+              >
+                {curriculums.map((curr) => {
+                  const dept = departments.find(d => d.id === curr.departmentId);
+                  return (
+                    <option key={curr.id} value={curr.id}>
+                      [{curr.code}] {curr.name} — {dept?.name || 'No Dept'}
+                    </option>
+                  );
+                })}
+              </select>
+            )}
+          </div>
+
+          {activeTargetCurr && (
+            <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-xs text-indigo-900 flex items-start gap-2">
+              <Info size={15} className="text-indigo-600 mt-0.5 shrink-0" />
+              <p>
+                This cover will be automatically shared with all courses under <strong>{activeTargetCurr.name}</strong>.
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Course Cover PDF (cover.pdf)</label>
+            {modalFile ? (
+              <div className="flex items-center justify-between p-3 bg-rose-50/50 border border-rose-200 rounded-xl">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 bg-rose-100 text-rose-700 rounded-lg shrink-0">
+                    <FileText size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {modalFile.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Ready as curriculum cover
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  <label 
+                    className="px-2.5 py-1 text-xs font-medium text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 cursor-pointer transition-colors shadow-xs"
+                  >
+                    Change
+                    <input 
+                      type="file" 
+                      accept=".pdf,application/pdf" 
+                      onChange={handleFileChange} 
+                      className="hidden" 
+                    />
+                  </label>
+                  <button 
+                    type="button"
+                    onClick={() => setModalFile(null)} 
+                    className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div 
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleFileDrop}
+                className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer group ${
+                  isDragging 
+                    ? 'border-indigo-500 bg-indigo-50/40' 
+                    : 'border-gray-300 bg-gray-50/50 hover:bg-indigo-50/20 hover:border-indigo-300'
+                }`}
+              >
+                <input 
+                  type="file" 
+                  accept=".pdf,application/pdf" 
+                  onChange={handleFileChange} 
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                />
+                <div className="space-y-1">
+                  <UploadCloud className="mx-auto h-10 w-10 text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                  <p className="text-xs font-medium text-gray-700">
+                    <span className="text-indigo-600 font-semibold">Click to upload</span> or drag and drop <span className="font-mono text-gray-600 font-medium">cover.pdf</span>
+                  </p>
+                  <p className="text-[11px] text-gray-400">
+                    Standard A4 course cover sheet (PDF only)
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Single Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteConfirmCurr}
+        onClose={() => setDeleteConfirmCurr(null)}
+        title="Remove Cover PDF"
+        footer={
+          <>
+            <button 
+              onClick={() => setDeleteConfirmCurr(null)} 
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleExecuteDeleteSingle} 
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Remove Cover
+            </button>
+          </>
+        }
+      >
+        {deleteConfirmCurr && (
+          <p className="text-sm text-gray-600">
+            Are you sure you want to remove the cover PDF from curriculum <strong>"{deleteConfirmCurr.name}"</strong>? The <strong>{getCoursesForCurriculum(deleteConfirmCurr.name).length}</strong> course(s) under this curriculum will no longer have a cover sheet attached until a new one is uploaded.
+          </p>
+        )}
+      </Modal>
+
+      {/* Bulk Delete Modal */}
+      <Modal
+        isOpen={isBulkDeleteOpen}
+        onClose={() => setIsBulkDeleteOpen(false)}
+        title="Remove Selected Covers"
+        footer={
+          <>
+            <button 
+              onClick={() => setIsBulkDeleteOpen(false)} 
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleExecuteBulkDelete} 
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Remove Covers ({selectedWithCovers.length})
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600">
+          Are you sure you want to remove cover PDFs from the <strong>{selectedWithCovers.length}</strong> selected curriculum(s)? This action cannot be undone.
+        </p>
+      </Modal>
+
+      {/* Realistic Preview Modal */}
+      <Modal
+        isOpen={!!previewCurr}
+        onClose={() => setPreviewCurr(null)}
+        title={`Cover Sheet Preview - ${previewCurr?.name}`}
+        maxWidth="max-w-2xl"
+        footer={
+          <>
+            <button
+              onClick={() => setPreviewCurr(null)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Close Preview
+            </button>
+            {previewCurr && (
+              <button
+                onClick={() => showToast(`Downloading ${previewCurr.coverFile}...`)}
+                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              >
+                <Download size={16} className="mr-1.5" /> Download PDF
+              </button>
+            )}
+          </>
+        }
+      >
+        {previewCurr && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between bg-gray-900 text-white px-4 py-2 rounded-lg text-xs font-mono">
+              <div className="flex items-center gap-2">
+                <FileText size={14} className="text-rose-400" />
+                <span className="font-semibold truncate max-w-[280px]">{previewCurr.coverFile || 'cover_sheet.pdf'}</span>
+              </div>
+              <div className="flex items-center gap-3 text-gray-300">
+                <span>{previewCurr.coverSize || '240 KB'}</span>
+                <span>•</span>
+                <span>Page 1 of 1</span>
+              </div>
+            </div>
+
+            <div className="bg-gray-200 p-4 rounded-xl flex justify-center">
+              <div className="bg-white w-full max-w-[480px] min-h-[540px] shadow-md rounded border border-gray-300 p-8 flex flex-col justify-between text-gray-800 select-none">
+                <div className="text-center space-y-2 border-b-2 border-indigo-900 pb-4">
+                  <div className="mx-auto w-10 h-10 rounded-full bg-indigo-900 text-white flex items-center justify-center font-bold text-xs">
+                    ABET
+                  </div>
+                  <h2 className="text-xs font-bold tracking-wider text-gray-900 uppercase">
+                    FACULTY OF ENGINEERING & INFORMATION TECHNOLOGY
+                  </h2>
+                  <p className="text-[11px] font-semibold text-indigo-950 uppercase">
+                    {departments.find(d => d.id === previewCurr.departmentId)?.name || 'DEPARTMENT'}
+                  </p>
+                  <div className="inline-block bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded text-[10px] font-bold text-indigo-700">
+                    CURRICULUM: {previewCurr.name.toUpperCase()} ({previewCurr.code})
+                  </div>
+                </div>
+
+                <div className="py-6 space-y-4 text-center">
+                  <div>
+                    <h3 className="text-base font-black text-gray-900 tracking-tight leading-snug uppercase">
+                      ABET COURSE PORTFOLIO & ASSESSMENT DOSSIER
+                    </h3>
+                    <p className="text-[11px] text-gray-500 mt-1 italic">
+                      Continuous Quality Improvement (CQI) Course Summary Sheet
+                    </p>
+                  </div>
+
+                  <div className="bg-indigo-50/50 border border-dashed border-indigo-300 rounded-lg p-3 text-left space-y-1.5 text-xs">
+                    <div className="flex justify-between items-center text-[10px] text-indigo-700 font-bold uppercase tracking-wider">
+                      <span>Shared Course Placement Slot</span>
+                      <span>All {previewCurr.code} Courses</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                      <div>
+                        <span className="text-gray-500 block text-[9px] uppercase font-semibold">Sample Course</span>
+                        <span className="font-bold text-gray-900">
+                          {getCoursesForCurriculum(previewCurr.name)[0]?.id || `${previewCurr.code}101`}:{' '}
+                          {getCoursesForCurriculum(previewCurr.name)[0]?.name || 'Course Title'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 block text-[9px] uppercase font-semibold">Academic Year</span>
+                        <span className="font-bold text-gray-900">2024 / Semester 1</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 pt-2 text-[10px] font-bold text-emerald-800 bg-emerald-50/80 border border-emerald-200/80 rounded py-1.5">
+                    <ShieldCheck size={14} className="text-emerald-600" />
+                    <span>Official ABET Accredited Program Template</span>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-200">
+                  <div className="grid grid-cols-3 gap-2 text-center text-[9px] text-gray-500">
+                    <div>
+                      <div className="border-b border-gray-400 h-8 mb-1"></div>
+                      <span className="font-semibold block text-gray-700">Course Instructor</span>
+                      <span>Signature & Date</span>
+                    </div>
+                    <div>
+                      <div className="border-b border-gray-400 h-8 mb-1"></div>
+                      <span className="font-semibold block text-gray-700">Curriculum Chair</span>
+                      <span>[{previewCurr.code}] Program</span>
+                    </div>
+                    <div>
+                      <div className="border-b border-gray-400 h-8 mb-1"></div>
+                      <span className="font-semibold block text-gray-700">Department Head</span>
+                      <span>Approval Stamp</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
@@ -2546,7 +3396,7 @@ const CourseList = ({
 // --- MAIN APP COMPONENT ---
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState('courses'); // 'courses', 'course_management', 'users', 'departments', 'curriculums'
+  const [activeTab, setActiveTab] = useState('courses'); // 'courses', 'course_management', 'cover_management', 'users', 'departments', 'curriculums'
   const [showErrorModal, setShowErrorModal] = useState(false);
 
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
@@ -2619,10 +3469,17 @@ export default function App() {
               </button>
 
               <button
+                onClick={() => setActiveTab('cover_management')}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'cover_management' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                <Layers size={18} className="mr-3" /> Cover
+              </button>
+
+              <button
                 onClick={() => setActiveTab('users')}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'users' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                <Users size={18} className="mr-3" /> User Management
+                <Users size={18} className="mr-3" /> Users
               </button>
 
               <button
@@ -2698,6 +3555,14 @@ export default function App() {
             curriculums={curriculums} 
             files={files} 
             setFiles={setFiles} 
+          />
+        )}
+        {activeTab === 'cover_management' && (
+          <CoverManagement 
+            curriculums={curriculums} 
+            setCurriculums={setCurriculums} 
+            departments={departments} 
+            courses={courses} 
           />
         )}
         {activeTab === 'users' && (
