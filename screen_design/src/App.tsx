@@ -1427,8 +1427,8 @@ const CourseManagement = ({
 
   // --- Course User Access State ---
   const [courseAssignments, setCourseAssignments] = useState<Record<string, CourseUserAccess[]>>(INITIAL_COURSE_ASSIGNMENTS);
-  // Default expanded course to CS101 so the user can immediately view all 4 mock cases
-  const [expandedCourseIds, setExpandedCourseIds] = useState<string[]>(['CS101']);
+  // Default all course access sub-tables to collapsed
+  const [expandedCourseIds, setExpandedCourseIds] = useState<string[]>([]);
 
   // Edit Access Modal State
   const [editingAccessData, setEditingAccessData] = useState<{ courseId: string; courseName: string; userAccess: CourseUserAccess } | null>(null);
