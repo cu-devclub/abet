@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { 
   Users, BookOpen, LogOut, Plus, X, Edit2, 
   Trash2, Download, UploadCloud, AlertCircle, CheckCircle2,
-  Globe, Moon, Building2, GraduationCap, BookMarked,
+  Moon, Building2, GraduationCap, BookMarked,
   Search, ArrowUpDown, ChevronUp, ChevronDown, Filter, RotateCcw,
   ChevronRight, AlertTriangle, FileText, Eye, Layers,
-  Info, ShieldCheck
+  Info, ShieldCheck, UserPlus
 } from 'lucide-react';
 
 
@@ -107,7 +107,137 @@ const MOCK_USERS = [
   { id: 2, name: 'Bob Johnson', email: 'bob.admin@company.com', role: 'admin', department: 'Mathematics and Computer Science', curriculum: 'Mathematics' },
   { id: 3, name: 'Charlie Davis', email: 'charlie.staff@company.com', role: 'staff', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', courses: [{ id: 'CS101', access: 'edit' }, { id: 'MATH205', access: 'view' }] },
   { id: 4, name: 'Diana Prince', email: 'diana.instructor@company.com', role: 'instructor', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', courses: [{ id: 'CS101', access: 'edit' }] },
+  { id: 5, name: 'Evan Wright', email: 'evan.qa@company.com', role: 'staff', department: 'Mathematics and Computer Science', curriculum: 'Computer Science' },
+  { id: 6, name: 'Fiona Gallagher', email: 'fiona.ee@company.com', role: 'instructor', department: 'Electrical Engineering', curriculum: 'Electrical Engineering' },
 ];
+
+export interface CourseUserAccess {
+  id: string;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  userRole: string;
+  userDept?: string;
+  access: 'Edit and Download' | 'Download';
+  isDefault?: boolean;
+  defaultReason?: string;
+}
+
+const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
+  'CS101': [
+    {
+      id: 'a1',
+      userId: 4,
+      userName: 'Diana Prince',
+      userEmail: 'diana.instructor@company.com',
+      userRole: 'instructor',
+      userDept: 'Mathematics and Computer Science',
+      access: 'Edit and Download',
+      isDefault: true,
+      defaultReason: 'Primary Course Instructor'
+    },
+    {
+      id: 'a2',
+      userId: 3,
+      userName: 'Charlie Davis',
+      userEmail: 'charlie.staff@company.com',
+      userRole: 'staff',
+      userDept: 'Mathematics and Computer Science',
+      access: 'Edit and Download',
+      isDefault: false,
+      defaultReason: 'Teaching Assistant'
+    },
+    {
+      id: 'a3',
+      userId: 1,
+      userName: 'Alice Smith',
+      userEmail: 'alice.admin@company.com',
+      userRole: 'super_admin',
+      userDept: 'Mathematics and Computer Science',
+      access: 'Download',
+      isDefault: true,
+      defaultReason: 'Department Oversight (Default)'
+    },
+    {
+      id: 'a4',
+      userId: 5,
+      userName: 'Evan Wright',
+      userEmail: 'evan.qa@company.com',
+      userRole: 'staff',
+      userDept: 'Mathematics and Computer Science',
+      access: 'Download',
+      isDefault: false,
+      defaultReason: 'External Reviewer'
+    }
+  ],
+  'MATH205': [
+    {
+      id: 'a5',
+      userId: 2,
+      userName: 'Bob Johnson',
+      userEmail: 'bob.admin@company.com',
+      userRole: 'admin',
+      userDept: 'Mathematics and Computer Science',
+      access: 'Edit and Download',
+      isDefault: true,
+      defaultReason: 'Lead Mathematics Instructor'
+    },
+    {
+      id: 'a6',
+      userId: 3,
+      userName: 'Charlie Davis',
+      userEmail: 'charlie.staff@company.com',
+      userRole: 'staff',
+      userDept: 'Mathematics and Computer Science',
+      access: 'Download',
+      isDefault: false
+    }
+  ],
+  'CS102': [
+    {
+      id: 'a7',
+      userId: 4,
+      userName: 'Diana Prince',
+      userEmail: 'diana.instructor@company.com',
+      userRole: 'instructor',
+      userDept: 'Mathematics and Computer Science',
+      access: 'Edit and Download',
+      isDefault: false
+    },
+    {
+      id: 'a8',
+      userId: 1,
+      userName: 'Alice Smith',
+      userEmail: 'alice.admin@company.com',
+      userRole: 'super_admin',
+      userDept: 'Mathematics and Computer Science',
+      access: 'Download',
+      isDefault: true
+    }
+  ],
+  'EE101': [
+    {
+      id: 'a9',
+      userId: 6,
+      userName: 'Fiona Gallagher',
+      userEmail: 'fiona.ee@company.com',
+      userRole: 'instructor',
+      userDept: 'Electrical Engineering',
+      access: 'Edit and Download',
+      isDefault: true
+    },
+    {
+      id: 'a10',
+      userId: 1,
+      userName: 'Alice Smith',
+      userEmail: 'alice.admin@company.com',
+      userRole: 'super_admin',
+      userDept: 'Electrical Engineering',
+      access: 'Download',
+      isDefault: false
+    }
+  ]
+};
 
 const MOCK_FILES: CourseFile[] = [
   { 
@@ -237,20 +367,335 @@ const Modal = ({ isOpen, onClose, title, children, footer, maxWidth = 'max-w-lg'
   );
 };
 
+const SearchableSelect = ({
+  label,
+  value,
+  onChange,
+  options,
+  allLabel = 'All',
+  icon: Icon,
+  disabled = false,
+  className = '',
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; subtext?: string }[];
+  allLabel?: string;
+  icon?: React.ElementType;
+  disabled?: boolean;
+  className?: string;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const filteredOptions = options.filter(opt =>
+    opt.label.toLowerCase().includes(search.toLowerCase()) ||
+    (opt.subtext && opt.subtext.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const selectedOption = options.find(o => o.value === value);
+
+  return (
+    <div className={`relative ${className}`} ref={containerRef}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen(!isOpen);
+            setSearch('');
+          }
+        }}
+        className={`flex items-center gap-2 bg-white border rounded-lg shadow-2xs px-3 py-1.5 text-sm transition-all cursor-pointer ${
+          disabled ? 'opacity-60 cursor-not-allowed bg-gray-50 border-gray-200' : 'hover:border-indigo-300 hover:bg-gray-50/50 border-gray-300'
+        } ${isOpen ? 'ring-2 ring-indigo-500/20 border-indigo-500' : ''}`}
+      >
+        {Icon && <Icon size={14} className="text-gray-400 shrink-0" />}
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">
+          {label}:
+        </span>
+        <span
+          className={`font-semibold truncate max-w-[130px] sm:max-w-[190px] text-left ${
+            value ? 'text-indigo-700' : 'text-gray-700'
+          }`}
+          title={selectedOption ? selectedOption.label : allLabel}
+        >
+          {selectedOption ? selectedOption.label : allLabel}
+        </span>
+        {value ? (
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange('');
+              setIsOpen(false);
+            }}
+            className="p-0.5 hover:bg-gray-200 rounded-full text-gray-400 hover:text-gray-600 ml-1 transition-colors cursor-pointer"
+            title="Clear selection"
+          >
+            <X size={13} />
+          </span>
+        ) : (
+          <ChevronDown size={14} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180 text-indigo-600' : ''}`} />
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 mt-1.5 w-72 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+          {/* Search Box */}
+          <div className="px-2.5 pb-2 border-b border-gray-100">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={`Search ${label.toLowerCase()}...`}
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Options list */}
+          <div className="max-h-56 overflow-y-auto py-1 text-xs">
+            {(!search || allLabel.toLowerCase().includes(search.toLowerCase())) && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange('');
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-indigo-50/70 transition-colors cursor-pointer ${
+                  !value ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-700'
+                }`}
+              >
+                <span>{allLabel}</span>
+                {!value && <CheckCircle2 size={14} className="text-indigo-600 shrink-0" />}
+              </button>
+            )}
+
+            {filteredOptions.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-indigo-50/70 transition-colors cursor-pointer ${
+                    isSelected ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 pr-2">
+                    {opt.subtext && (
+                      <span className="bg-gray-100 text-gray-600 font-mono text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase shrink-0">
+                        {opt.subtext}
+                      </span>
+                    )}
+                    <span className="truncate">{opt.label}</span>
+                  </div>
+                  {isSelected && <CheckCircle2 size={14} className="text-indigo-600 shrink-0" />}
+                </button>
+              );
+            })}
+
+            {filteredOptions.length === 0 && (
+              <div className="px-3 py-4 text-center text-gray-400 italic">
+                No matching results
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SemesterHeaderFilter = ({
+  sortField,
+  sortDirection,
+  onSort,
+  selectedSemesters,
+  onToggleSemester,
+  onSelectAllSemesters,
+  onClearSemesters,
+}: {
+  sortField: string;
+  sortDirection: 'asc' | 'desc';
+  onSort: () => void;
+  selectedSemesters: string[];
+  onToggleSemester: (sem: string) => void;
+  onSelectAllSemesters: () => void;
+  onClearSemesters: () => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const hasFilter = selectedSemesters.length > 0;
+  const isSorted = sortField === 'semester';
+
+  return (
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative select-none">
+      <div className="flex items-center gap-1.5" ref={dropdownRef}>
+        {/* Sortable Header Label */}
+        <div 
+          onClick={onSort} 
+          className="flex items-center gap-1 cursor-pointer hover:text-gray-900 transition-colors"
+          title="Click to sort by semester"
+        >
+          <span>Semester</span>
+          {isSorted ? (
+            sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+          ) : (
+            <ArrowUpDown size={12} className="text-gray-400" />
+          )}
+        </div>
+
+        {/* Filter Trigger Button */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(!isOpen);
+            }}
+            className={`p-1 rounded-md transition-all cursor-pointer flex items-center gap-0.5 ${
+              hasFilter 
+                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200/60'
+            }`}
+            title="Filter by Semester"
+          >
+            <Filter size={13} className={hasFilter ? 'fill-indigo-600 text-indigo-600' : ''} />
+            {hasFilter && (
+              <span className="text-[10px] font-bold leading-none px-1 py-0.2 bg-indigo-600 text-white rounded-full">
+                {selectedSemesters.length}
+              </span>
+            )}
+          </button>
+
+          {/* Filter Popover Dropdown */}
+          {isOpen && (
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 p-2.5 z-50 normal-case font-normal text-gray-700 animate-in fade-in zoom-in-95 duration-100"
+            >
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+                <span className="text-xs font-bold text-gray-800">Filter Semester</span>
+                {hasFilter ? (
+                  <button
+                    type="button"
+                    onClick={onClearSemesters}
+                    className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onSelectAllSemesters}
+                    className="text-[11px] text-gray-500 hover:text-gray-700 cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                {[
+                  { id: '1', label: 'Semester 1' },
+                  { id: '2', label: 'Semester 2' },
+                  { id: 'Summer', label: 'Summer' },
+                ].map((sem) => {
+                  const isChecked = selectedSemesters.includes(sem.id);
+                  return (
+                    <label
+                      key={sem.id}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                        isChecked ? 'bg-indigo-50 text-indigo-900 font-medium' : 'hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => onToggleSemester(sem.id)}
+                        className="h-3.5 w-3.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <span>{sem.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="pt-2 mt-2 border-t border-gray-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-2.5 py-1 bg-indigo-600 text-white rounded-md text-[11px] font-semibold hover:bg-indigo-700 transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </th>
+  );
+};
+
 // --- PAGES ---
 
 const LoginPage = ({ onLogin, onSimulateError }: { onLogin: () => void; onSimulateError: () => void }) => (
   <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
     
-    {/* Theme & Language Selectors */}
+    {/* Theme Selector */}
     <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex gap-3">
-      <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 shadow-sm">
-        <Globe size={16} className="text-gray-500 mr-2" />
-        <select className="bg-transparent text-sm text-gray-700 outline-none cursor-pointer">
-          <option value="en">English</option>
-          <option value="th">ภาษาไทย</option>
-        </select>
-      </div>
       <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 shadow-sm">
         <Moon size={16} className="text-gray-500 mr-2" />
         <select className="bg-transparent text-sm text-gray-700 outline-none cursor-pointer">
@@ -931,7 +1376,8 @@ const CourseManagement = ({
   departments,
   curriculums,
   files,
-  setFiles
+  setFiles,
+  users = MOCK_USERS
 }: {
   courses: any[];
   setCourses: React.Dispatch<React.SetStateAction<any[]>>;
@@ -939,6 +1385,7 @@ const CourseManagement = ({
   curriculums: Curriculum[];
   files: any[];
   setFiles: React.Dispatch<React.SetStateAction<any[]>>;
+  users?: User[];
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<any>(null);
@@ -946,10 +1393,12 @@ const CourseManagement = ({
   // Year selector - single choice, defaults to latest year (no 'all' choice)
   const [selectedYear, setSelectedYear] = useState('2024');
   
-  // Multi-select filters next to course list (empty = all)
+  // Top Dropdown Filters: Department & Curriculum
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedCurriculum, setSelectedCurriculum] = useState<string>('');
+
+  // Column Filter: Semester (empty = all)
   const [selectedSemesters, setSelectedSemesters] = useState<string[]>([]);
-  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
-  const [selectedCurriculums, setSelectedCurriculums] = useState<string[]>([]);
 
   // Search & Sort states
   const [searchQuery, setSearchQuery] = useState('');
@@ -976,6 +1425,38 @@ const CourseManagement = ({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<any>(null);
 
+  // --- Course User Access State ---
+  const [courseAssignments, setCourseAssignments] = useState<Record<string, CourseUserAccess[]>>(INITIAL_COURSE_ASSIGNMENTS);
+  // Default expanded course to CS101 so the user can immediately view all 4 mock cases
+  const [expandedCourseIds, setExpandedCourseIds] = useState<string[]>(['CS101']);
+
+  // Edit Access Modal State
+  const [editingAccessData, setEditingAccessData] = useState<{ courseId: string; courseName: string; userAccess: CourseUserAccess } | null>(null);
+  const [editingAccessLevel, setEditingAccessLevel] = useState<'Edit and Download' | 'Download'>('Edit and Download');
+  const [editingIsDefault, setEditingIsDefault] = useState(false);
+
+  // Assign User to Course Modal State
+  const [assigningCourse, setAssigningCourse] = useState<any | null>(null);
+  const [assignUserId, setAssignUserId] = useState<string>('');
+  const [assignAccessLevel, setAssignAccessLevel] = useState<'Edit and Download' | 'Download'>('Edit and Download');
+  const [assignIsDefault, setAssignIsDefault] = useState(false);
+
+  // Toast message
+  const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToastMsg = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToastMsg({ text, type });
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  const toggleCourseExpand = (courseId: string) => {
+    if (expandedCourseIds.includes(courseId)) {
+      setExpandedCourseIds(expandedCourseIds.filter(id => id !== courseId));
+    } else {
+      setExpandedCourseIds([...expandedCourseIds, courseId]);
+    }
+  };
+
   const toggleSemester = (sem: string) => {
     if (selectedSemesters.includes(sem)) {
       setSelectedSemesters(selectedSemesters.filter(s => s !== sem));
@@ -984,37 +1465,42 @@ const CourseManagement = ({
     }
   };
 
-  const toggleDepartment = (deptName: string) => {
-    if (selectedDepartments.includes(deptName)) {
-      setSelectedDepartments(selectedDepartments.filter(d => d !== deptName));
-    } else {
-      setSelectedDepartments([...selectedDepartments, deptName]);
-    }
+  const handleSelectAllSemesters = () => {
+    setSelectedSemesters(['1', '2', 'Summer']);
   };
 
-  const toggleCurriculum = (currName: string) => {
-    if (selectedCurriculums.includes(currName)) {
-      setSelectedCurriculums(selectedCurriculums.filter(c => c !== currName));
-    } else {
-      setSelectedCurriculums([...selectedCurriculums, currName]);
+  const handleClearSemesters = () => {
+    setSelectedSemesters([]);
+  };
+
+  const handleDepartmentChange = (deptName: string) => {
+    setSelectedDepartment(deptName);
+    if (deptName && selectedCurriculum) {
+      const parentDept = departments.find(d => d.name === deptName);
+      const curr = curriculums.find(c => c.name === selectedCurriculum);
+      if (curr && parentDept && curr.departmentId !== parentDept.id) {
+        setSelectedCurriculum('');
+      }
     }
   };
 
   const clearAllFilters = () => {
+    setSelectedDepartment('');
+    setSelectedCurriculum('');
     setSelectedSemesters([]);
-    setSelectedDepartments([]);
-    setSelectedCurriculums([]);
     setSearchQuery('');
   };
 
-  const hasActiveFilters = selectedSemesters.length > 0 || selectedDepartments.length > 0 || selectedCurriculums.length > 0 || searchQuery !== '';
+  const hasActiveFilters = Boolean(
+    selectedDepartment || selectedCurriculum || selectedSemesters.length > 0 || searchQuery
+  );
 
   // Filtered & Sorted courses
   const filteredCourses = courses.filter(course => {
     const matchesYear = (course.year || '2024') === selectedYear;
     const matchesSemester = selectedSemesters.length === 0 || selectedSemesters.includes(course.semester || '1');
-    const matchesDept = selectedDepartments.length === 0 || selectedDepartments.includes(course.department || '');
-    const matchesCurriculum = selectedCurriculums.length === 0 || selectedCurriculums.includes(course.curriculum || '');
+    const matchesDept = !selectedDepartment || course.department === selectedDepartment;
+    const matchesCurriculum = !selectedCurriculum || course.curriculum === selectedCurriculum;
 
     const query = searchQuery.toLowerCase();
     const matchesSearch = (
@@ -1080,8 +1566,13 @@ const CourseManagement = ({
     setEditingCourse(null);
     setEditingId('');
     setEditingNameInput('');
-    setEditingDepartment(departments[0]?.name || '');
-    setEditingCurriculum('');
+    const activeDept = selectedDepartment || (departments[0]?.name || '');
+    setEditingDepartment(activeDept);
+    const availableCurrs = curriculums.filter(c => {
+      const dept = departments.find(d => d.name === activeDept);
+      return !dept || c.departmentId === dept.id;
+    });
+    setEditingCurriculum(selectedCurriculum || (availableCurrs[0]?.name || ''));
     setEditingYear(selectedYear);
     setEditingSemester(selectedSemesters.length === 1 ? selectedSemesters[0] : '1');
     setActiveCreationMethod('single');
@@ -1116,16 +1607,41 @@ const CourseManagement = ({
         } : c));
         if (editingId.trim().toUpperCase() !== editingCourse.id) {
           setFiles(files.map(f => f.courseId === editingCourse.id ? { ...f, courseId: editingId.trim().toUpperCase() } : f));
+          if (courseAssignments[editingCourse.id]) {
+            const currentAssignments = courseAssignments[editingCourse.id];
+            const updatedAssignments = { ...courseAssignments };
+            delete updatedAssignments[editingCourse.id];
+            updatedAssignments[editingId.trim().toUpperCase()] = currentAssignments;
+            setCourseAssignments(updatedAssignments);
+          }
         }
       } else {
+        const newCourseId = editingId.trim().toUpperCase();
         setCourses([...courses, { 
-          id: editingId.trim().toUpperCase(), 
+          id: newCourseId, 
           name: editingNameInput.trim(),
           department: editingDepartment,
           curriculum: editingCurriculum,
           year: editingYear,
           semester: editingSemester,
         }]);
+        // Automatically assign creator/instructor with default access
+        setCourseAssignments({
+          ...courseAssignments,
+          [newCourseId]: [
+            {
+              id: 'a_' + Date.now(),
+              userId: 1,
+              userName: 'Alice Smith',
+              userEmail: 'alice.admin@company.com',
+              userRole: 'super_admin',
+              userDept: editingDepartment,
+              access: 'Edit and Download',
+              isDefault: true,
+              defaultReason: 'Creator / Department Admin'
+            }
+          ]
+        });
       }
       setIsAddModalOpen(false);
       setEditingCourse(null);
@@ -1148,35 +1664,128 @@ const CourseManagement = ({
     }
   };
 
-  const handleDeleteSingle = (course: any) => {
-    setCourseToDelete(course);
-    setDeleteConfirmOpen(true);
-  };
-
   const handleExecuteDelete = () => {
-    const idsToDelete = courseToDelete ? [courseToDelete.id] : selectedCourseIds;
-    setCourses(courses.filter(c => !idsToDelete.includes(c.id)));
-    setFiles(files.filter(f => !idsToDelete.includes(f.courseId)));
-    setSelectedCourseIds(selectedCourseIds.filter(id => !idsToDelete.includes(id)));
+    if (courseToDelete) {
+      setCourses(courses.filter(c => c.id !== courseToDelete.id));
+      setFiles(files.filter(f => f.courseId !== courseToDelete.id));
+      setSelectedCourseIds(selectedCourseIds.filter(id => id !== courseToDelete.id));
+      if (courseAssignments[courseToDelete.id]) {
+        const updatedAssignments = { ...courseAssignments };
+        delete updatedAssignments[courseToDelete.id];
+        setCourseAssignments(updatedAssignments);
+      }
+      showToastMsg(`Deleted course ${courseToDelete.id} - ${courseToDelete.name}.`, 'info');
+      setCourseToDelete(null);
+    } else if (selectedCourseIds.length > 0) {
+      setCourses(courses.filter(c => !selectedCourseIds.includes(c.id)));
+      setFiles(files.filter(f => !selectedCourseIds.includes(f.courseId)));
+      showToastMsg(`Deleted ${selectedCourseIds.length} course(s).`, 'info');
+      setSelectedCourseIds([]);
+    }
     setDeleteConfirmOpen(false);
-    setCourseToDelete(null);
   };
 
-  const targetIds = courseToDelete ? [courseToDelete.id] : selectedCourseIds;
-  const coursesWithGeneratedFiles = courses.filter(c => 
-    targetIds.includes(c.id) && 
-    files.some(f => f.courseId === c.id && f.status === 'generated')
-  );
+  // --- User Access Handlers ---
+  const handleOpenEditAccess = (course: any, userAccess: CourseUserAccess) => {
+    setEditingAccessData({ courseId: course.id, courseName: course.name, userAccess });
+    setEditingAccessLevel(userAccess.access);
+    setEditingIsDefault(!!userAccess.isDefault);
+  };
+
+  const handleSaveEditAccess = () => {
+    if (!editingAccessData) return;
+    const { courseId, userAccess } = editingAccessData;
+    const currentList = courseAssignments[courseId] || [];
+    const updatedList = currentList.map(a => a.id === userAccess.id ? {
+      ...a,
+      access: editingAccessLevel,
+      isDefault: editingIsDefault
+    } : a);
+    setCourseAssignments({ ...courseAssignments, [courseId]: updatedList });
+    setEditingAccessData(null);
+    showToastMsg(`Updated access level for ${userAccess.userName} to "${editingAccessLevel}".`);
+  };
+
+  const handleDeleteAccessFromModal = () => {
+    if (!editingAccessData) return;
+    const { courseId, userAccess } = editingAccessData;
+    const currentList = courseAssignments[courseId] || [];
+    const updatedList = currentList.filter(a => a.id !== userAccess.id);
+    setCourseAssignments({ ...courseAssignments, [courseId]: updatedList });
+    setEditingAccessData(null);
+    showToastMsg(`Removed ${userAccess.userName}'s access from ${courseId}.`, 'info');
+  };
+
+  const handleOpenAssignUser = (course: any) => {
+    setAssigningCourse(course);
+    const existingUserIds = (courseAssignments[course.id] || []).map(a => a.userId);
+    const availableUser = (users || MOCK_USERS).find(u => !existingUserIds.includes(u.id));
+    setAssignUserId(availableUser ? String(availableUser.id) : (users || MOCK_USERS)[0]?.id ? String((users || MOCK_USERS)[0].id) : '');
+    setAssignAccessLevel('Edit and Download');
+    setAssignIsDefault(false);
+  };
+
+  const handleSaveAssignUser = () => {
+    if (!assigningCourse || !assignUserId) return;
+    const userObj = (users || MOCK_USERS).find(u => String(u.id) === String(assignUserId));
+    if (!userObj) return;
+
+    const newAccess: CourseUserAccess = {
+      id: 'a_' + Date.now(),
+      userId: userObj.id,
+      userName: userObj.name,
+      userEmail: userObj.email,
+      userRole: userObj.role,
+      userDept: userObj.department,
+      access: assignAccessLevel,
+      isDefault: assignIsDefault,
+      defaultReason: assignIsDefault ? 'Manual Default Assignment' : undefined
+    };
+
+    const currentList = courseAssignments[assigningCourse.id] || [];
+    setCourseAssignments({
+      ...courseAssignments,
+      [assigningCourse.id]: [...currentList, newAccess]
+    });
+
+    if (!expandedCourseIds.includes(assigningCourse.id)) {
+      setExpandedCourseIds([...expandedCourseIds, assigningCourse.id]);
+    }
+
+    setAssigningCourse(null);
+    showToastMsg(`Assigned ${userObj.name} to ${assigningCourse.id} (${assignAccessLevel}).`);
+  };
+
+  // Helper to identify courses with generated reports before deletion
+  const coursesWithGeneratedFiles = (courseToDelete ? [courseToDelete] : courses.filter(c => selectedCourseIds.includes(c.id)))
+    .filter(course => files.some(f => f.courseId === course.id && f.year === selectedYear && f.status === 'generated'));
 
   return (
-    <div className="p-6 space-y-6 w-full">
-      {/* Top Header: Title + Year Selector (Top Left) + Actions (Right) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        {/* Left: Title + Year Dropdown (No 'All Years', defaults to latest) */}
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
+    <div className="p-6 space-y-5 w-full">
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium ${
+            toastMsg.type === 'error'
+              ? 'bg-red-50 text-red-800 border-red-200'
+              : toastMsg.type === 'info'
+              ? 'bg-blue-50 text-blue-800 border-blue-200'
+              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          }`}>
+            <CheckCircle2 size={18} className={toastMsg.type === 'error' ? 'text-red-600' : toastMsg.type === 'info' ? 'text-blue-600' : 'text-emerald-600'} />
+            <span>{toastMsg.text}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Top Header: Title + Dropdown Filters (Year, Dept, Curr) + Actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Left: Title + Year + Department + Curriculum Dropdown Selects */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h1 className="text-2xl font-bold text-gray-900 mr-1">Course Management</h1>
           
-          <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-sm px-3 py-1.5 ml-1">
+          {/* Year Dropdown */}
+          <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-2xs px-3 py-1.5">
             <span className="text-xs font-semibold text-gray-500 mr-2 uppercase tracking-wide">Year:</span>
             <select 
               value={selectedYear}
@@ -1189,351 +1798,737 @@ const CourseManagement = ({
               <option value="2022">2022</option>
             </select>
           </div>
+
+          {/* Department Searchable Dropdown */}
+          <SearchableSelect
+            label="Department"
+            value={selectedDepartment}
+            onChange={handleDepartmentChange}
+            options={departments.map(d => ({ value: d.name, label: d.name, subtext: d.code }))}
+            allLabel="All Departments"
+            icon={Building2}
+          />
+
+          {/* Curriculum Searchable Dropdown */}
+          <SearchableSelect
+            label="Curriculum"
+            value={selectedCurriculum}
+            onChange={setSelectedCurriculum}
+            options={curriculums
+              .filter(c => {
+                if (!selectedDepartment) return true;
+                const parentDept = departments.find(d => d.name === selectedDepartment);
+                return parentDept && c.departmentId === parentDept.id;
+              })
+              .map(c => ({ value: c.name, label: c.name, subtext: c.code }))
+            }
+            allLabel="All Curriculums"
+            icon={GraduationCap}
+          />
         </div>
         
         {/* Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           {selectedCourseIds.length > 0 && (
             <button 
               onClick={() => { setCourseToDelete(null); setDeleteConfirmOpen(true); }} 
-              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm transition-colors shadow-sm whitespace-nowrap"
+              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm transition-colors shadow-2xs whitespace-nowrap cursor-pointer"
             >
               <Trash2 size={16} className="mr-2" /> Delete Selected ({selectedCourseIds.length})
             </button>
           )}
           
-          <button onClick={handleOpenAdd} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm whitespace-nowrap">
+          <button onClick={handleOpenAdd} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-2xs whitespace-nowrap cursor-pointer">
             <Plus size={16} className="mr-2" /> Add Course
           </button>
         </div>
       </div>
 
-      {/* Main Layout: Course List on Left (flex-1), Multi-Select Filter Panel on Right (w-72) */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* Left Area: Search Bar + Course Table */}
-        <div className="flex-1 w-full min-w-0 space-y-4">
-          {/* Search Bar + Results Status */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search course ID, name, department..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
-              />
+      {/* Search Bar + Active Filters Status */}
+      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
             </div>
-            <div className="text-xs text-gray-500 px-2 whitespace-nowrap">
-              Showing <span className="font-semibold text-gray-900">{sortedCourses.length}</span> course{sortedCourses.length === 1 ? '' : 's'} in <span className="font-semibold text-indigo-600">{selectedYear}</span>
-            </div>
+            <input
+              type="text"
+              placeholder="Search course ID, name, department, curriculum..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
+            />
           </div>
-
-          {/* Course Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="w-12 px-6 py-3 text-left">
-                      <input
-                        type="checkbox"
-                        checked={selectedCourseIds.length === sortedCourses.length && sortedCourses.length > 0}
-                        onChange={handleSelectAllToggle}
-                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                      />
-                    </th>
-                    <th 
-                      onClick={() => handleSort('id')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Course ID
-                        {sortField === 'id' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('name')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Course Name
-                        {sortField === 'name' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('semester')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Semester
-                        {sortField === 'semester' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('department')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Department
-                        {sortField === 'department' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('curriculum')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Curriculum
-                        {sortField === 'curriculum' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedCourses.map(course => {
-                    const isSelected = selectedCourseIds.includes(course.id);
-
-                    return (
-                      <tr 
-                        key={course.id} 
-                        onClick={() => handleToggleSelect(course.id)}
-                        className={`hover:bg-gray-50 transition-colors cursor-pointer ${
-                          isSelected ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : ''
-                        }`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <input 
-                            type="checkbox" 
-                            checked={isSelected} 
-                            onChange={() => {}} // toggled by row onClick
-                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-700">
-                          <span className="bg-indigo-50 px-2.5 py-1 rounded-md text-xs tracking-wider uppercase">
-                            {course.id}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <div className="flex items-center gap-2">
-                            <span>{course.name}</span>
-                            {(() => {
-                              const parentCurr = curriculums.find(c => c.name === course.curriculum);
-                              if (parentCurr?.coverFile) {
-                                return (
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded" title={`Shared Cover: ${parentCurr.coverFile} (${parentCurr.name})`}>
-                                    <FileText size={11} className="text-indigo-500" />
-                                    <span>{parentCurr.code} Cover</span>
-                                  </span>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                            {course.semester === 'Summer' ? 'Summer' : `Sem ${course.semester || '1'}`}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="max-w-[160px] truncate" title={course.department || ''}>
-                            {course.department || '-'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="max-w-[140px] truncate" title={course.curriculum || ''}>
-                            {course.curriculum || '-'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" onClick={(e) => e.stopPropagation()}>
-                          <button 
-                            onClick={() => handleEdit(course)}
-                            className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
-                            title="Edit Course"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteSingle(course)}
-                            className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
-                            title="Delete Course"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {sortedCourses.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="text-center py-8 text-gray-500 italic">
-                        No courses found matching the selected filters for academic year {selectedYear}.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div className="text-xs text-gray-500 px-2 whitespace-nowrap">
+            Showing <span className="font-semibold text-gray-900">{sortedCourses.length}</span> course{sortedCourses.length === 1 ? '' : 's'} in <span className="font-semibold text-indigo-600">{selectedYear}</span>
           </div>
         </div>
 
-        {/* Right Area: Multi-Select Filter Panel Sidebar */}
-        <div className="w-full lg:w-72 shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-6 sticky top-6">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-            <div className="flex items-center gap-2 text-gray-900 font-semibold text-sm">
-              <Filter size={16} className="text-indigo-600" />
-              <span>Filters</span>
-            </div>
-            {hasActiveFilters && (
-              <button 
-                onClick={clearAllFilters}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
-                title="Reset all filters"
-              >
-                <RotateCcw size={12} /> Reset
-              </button>
+        {/* Active Filters Bar */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100 text-xs">
+            <span className="text-gray-500 font-medium">Active filters:</span>
+            {selectedDepartment && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Dept: {selectedDepartment}
+                <button onClick={() => setSelectedDepartment('')} className="hover:text-indigo-900 cursor-pointer"><X size={12} /></button>
+              </span>
             )}
-          </div>
-
-          {/* Semester Multi-Select */}
-          <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Semester</span>
-              <span className="text-[11px] text-gray-400 font-medium">
-                {selectedSemesters.length === 0 ? 'All' : `${selectedSemesters.length} selected`}
+            {selectedCurriculum && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Curriculum: {selectedCurriculum}
+                <button onClick={() => setSelectedCurriculum('')} className="hover:text-indigo-900 cursor-pointer"><X size={12} /></button>
               </span>
-            </div>
-            <div className="space-y-1.5">
-              {[
-                { id: '1', label: 'Semester 1' },
-                { id: '2', label: 'Semester 2' },
-                { id: 'Summer', label: 'Summer' }
-              ].map(sem => {
-                const isChecked = selectedSemesters.includes(sem.id);
+            )}
+            {selectedSemesters.length > 0 && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Semesters: {selectedSemesters.map(s => s === 'Summer' ? 'Summer' : `Sem ${s}`).join(', ')}
+                <button onClick={() => setSelectedSemesters([])} className="hover:text-indigo-900 cursor-pointer"><X size={12} /></button>
+              </span>
+            )}
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded-full font-medium">
+                Search: "{searchQuery}"
+                <button onClick={() => setSearchQuery('')} className="hover:text-gray-900 cursor-pointer"><X size={12} /></button>
+              </span>
+            )}
+            <button
+              onClick={clearAllFilters}
+              className="text-indigo-600 hover:text-indigo-800 font-semibold underline ml-1 cursor-pointer flex items-center gap-1"
+            >
+              <RotateCcw size={11} /> Clear all
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Course Table (Full Width) */}
+      <div className="bg-white rounded-xl shadow-2xs border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="w-9 px-3 py-3 text-center" title="Expand user assignments">
+                  <span className="sr-only">Expand</span>
+                </th>
+                <th className="w-10 px-3 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={selectedCourseIds.length === sortedCourses.length && sortedCourses.length > 0}
+                    onChange={handleSelectAllToggle}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                  />
+                </th>
+                <th 
+                  onClick={() => handleSort('id')}
+                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Course ID
+                    {sortField === 'id' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('name')}
+                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Course Name
+                    {sortField === 'name' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <SemesterHeaderFilter
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={() => handleSort('semester')}
+                  selectedSemesters={selectedSemesters}
+                  onToggleSemester={toggleSemester}
+                  onSelectAllSemesters={handleSelectAllSemesters}
+                  onClearSemesters={handleClearSemesters}
+                />
+                <th 
+                  onClick={() => handleSort('department')}
+                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Department
+                    {sortField === 'department' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('curriculum')}
+                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Curriculum
+                    {sortField === 'curriculum' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedCourses.map(course => {
+                const isSelected = selectedCourseIds.includes(course.id);
+                const isExpanded = expandedCourseIds.includes(course.id);
+                const courseUsers = courseAssignments[course.id] || [];
+
                 return (
-                  <label 
-                    key={sem.id}
-                    className={`flex items-center justify-between p-2 rounded-lg text-sm cursor-pointer transition-colors ${
-                      isChecked ? 'bg-indigo-50/70 text-indigo-900 font-medium' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <input 
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleSemester(sem.id)}
-                        className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                      />
-                      <span>{sem.label}</span>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Department Multi-Select */}
-          <div className="pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Department</span>
-              <span className="text-[11px] text-gray-400 font-medium">
-                {selectedDepartments.length === 0 ? 'All' : `${selectedDepartments.length} selected`}
-              </span>
-            </div>
-            <div className="space-y-1.5">
-              {departments.map(dept => {
-                const isChecked = selectedDepartments.includes(dept.name);
-                return (
-                  <label 
-                    key={dept.id}
-                    className={`flex items-start gap-2.5 p-2 rounded-lg text-sm cursor-pointer transition-colors ${
-                      isChecked ? 'bg-indigo-50/70 text-indigo-900 font-medium' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <input 
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleDepartment(dept.name)}
-                      className="h-4 w-4 mt-0.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer shrink-0"
-                    />
-                    <span className="leading-snug text-xs font-medium">{dept.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Curriculum Multi-Select */}
-          <div className="pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Curriculum</span>
-              <span className="text-[11px] text-gray-400 font-medium">
-                {selectedCurriculums.length === 0 ? 'All' : `${selectedCurriculums.length} selected`}
-              </span>
-            </div>
-            <div className="space-y-1.5 max-h-60 overflow-y-auto">
-              {curriculums
-                .filter(curr => {
-                  if (selectedDepartments.length === 0) return true;
-                  const parentDept = departments.find(d => d.id === curr.departmentId);
-                  return parentDept && selectedDepartments.includes(parentDept.name);
-                })
-                .map(curr => {
-                  const isChecked = selectedCurriculums.includes(curr.name);
-                  return (
-                    <label 
-                      key={curr.id}
-                      className={`flex items-start gap-2.5 p-2 rounded-lg text-sm cursor-pointer transition-colors ${
-                        isChecked ? 'bg-indigo-50/70 text-indigo-900 font-medium' : 'hover:bg-gray-50 text-gray-700'
+                  <React.Fragment key={course.id}>
+                    <tr 
+                      onClick={() => handleToggleSelect(course.id)}
+                      className={`hover:bg-gray-50/80 transition-colors cursor-pointer ${
+                        isSelected ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : isExpanded ? 'bg-slate-50/60' : ''
                       }`}
                     >
-                      <input 
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleCurriculum(curr.name)}
-                        className="h-4 w-4 mt-0.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer shrink-0"
-                      />
-                      <span className="leading-snug text-xs font-medium">{curr.name}</span>
-                    </label>
-                  );
-                })}
-            </div>
-          </div>
+                      {/* Expand Button Column */}
+                      <td className="pl-3.5 pr-1 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => toggleCourseExpand(course.id)}
+                          className="p-1 rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                          title={isExpanded ? "Collapse assigned users" : "Expand assigned users"}
+                        >
+                          <ChevronRight 
+                            size={16} 
+                            className={`transition-transform duration-200 ${isExpanded ? 'rotate-90 text-indigo-600' : 'text-gray-400'}`} 
+                          />
+                        </button>
+                      </td>
 
-          <div className="pt-3 border-t border-gray-100">
-            <p className="text-[11px] text-gray-400 text-center italic">
-              Unselected categories default to showing all
-            </p>
-          </div>
+                      {/* Checkbox Column */}
+                      <td className="px-3 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          checked={isSelected} 
+                          onChange={() => handleToggleSelect(course.id)}
+                          className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </td>
+
+                      {/* Course ID */}
+                      <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-indigo-700">
+                        <span className="bg-indigo-50 px-2.5 py-1 rounded-md text-xs tracking-wider uppercase">
+                          {course.id}
+                        </span>
+                      </td>
+
+                      {/* Course Name + Members Badge */}
+                      <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <span>{course.name}</span>
+
+                          {/* Members Count Badge (Clickable to toggle expand) */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleCourseExpand(course.id);
+                            }}
+                            className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer ${
+                              isExpanded 
+                                ? 'bg-indigo-100 text-indigo-800' 
+                                : 'bg-gray-100 hover:bg-indigo-50 text-gray-600 hover:text-indigo-700'
+                            }`}
+                            title="Click to view assigned users with access"
+                          >
+                            <Users size={11} className={isExpanded ? "text-indigo-700" : "text-gray-500"} />
+                            <span>{courseUsers.length} user{courseUsers.length === 1 ? '' : 's'}</span>
+                          </button>
+
+                          {(() => {
+                            const parentCurr = curriculums.find(c => c.name === course.curriculum);
+                            if (parentCurr?.coverFile) {
+                              return (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded" title={`Shared Cover: ${parentCurr.coverFile} (${parentCurr.name})`}>
+                                  <FileText size={11} className="text-indigo-500" />
+                                  <span>{parentCurr.code} Cover</span>
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      </td>
+
+                      {/* Semester */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                          {course.semester === 'Summer' ? 'Summer' : `Sem ${course.semester || '1'}`}
+                        </span>
+                      </td>
+
+                      {/* Department */}
+                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="max-w-[160px] truncate" title={course.department || ''}>
+                          {course.department || '-'}
+                        </div>
+                      </td>
+
+                      {/* Curriculum */}
+                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="max-w-[140px] truncate" title={course.curriculum || ''}>
+                          {course.curriculum || '-'}
+                        </div>
+                      </td>
+
+                      {/* Course Actions */}
+                      <td className="px-5 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
+                        <button 
+                          type="button"
+                          onClick={() => handleEdit(course)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
+                          title="Edit Course"
+                        >
+                          <Edit2 size={11} />
+                          <span>Edit</span>
+                        </button>
+                      </td>
+                    </tr>
+
+                    {/* --- Expanded Sub-Table: Assigned Users with Course Access --- */}
+                    {isExpanded && (
+                      <tr className="bg-slate-50/70 border-b border-gray-200">
+                        <td colSpan={8} className="p-0">
+                          <div className="py-3.5 px-6 sm:px-8 bg-gradient-to-b from-slate-50 via-slate-100/50 to-slate-50 border-y border-slate-200/80 shadow-inner">
+                            {/* Sub-table Header Bar */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
+                                  <Users size={16} />
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                    <span>Assigned Users with Access</span>
+                                    <span className="text-[11px] font-normal lowercase bg-indigo-50 text-indigo-700 border border-indigo-200/60 px-2 py-0.2 rounded-full font-sans">
+                                      {courseUsers.length} user{courseUsers.length === 1 ? '' : 's'}
+                                    </span>
+                                  </h4>
+                                  <p className="text-[11px] text-gray-500">
+                                    Permissions for course <strong className="text-gray-700">{course.id}</strong> ({course.name})
+                                  </p>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAssignUser(course)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-indigo-200 hover:border-indigo-300 text-indigo-700 hover:bg-indigo-50 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
+                              >
+                                <UserPlus size={13} />
+                                <span>Assign User</span>
+                              </button>
+                            </div>
+
+                            {/* Sub-Table Content */}
+                            <div className="bg-white rounded-lg border border-slate-200 shadow-2xs overflow-hidden">
+                              <table className="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead className="bg-slate-50/90 text-gray-600 uppercase font-semibold text-[10px] tracking-wider">
+                                  <tr>
+                                    <th className="px-4 py-2.5 text-left">Name</th>
+                                    <th className="px-4 py-2.5 text-left">Email</th>
+                                    <th className="px-4 py-2.5 text-left">Access</th>
+                                    <th className="px-4 py-2.5 text-right">Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 bg-white">
+                                  {courseUsers.map((userAccess) => (
+                                    <tr key={userAccess.id} className="hover:bg-slate-50/70 transition-colors">
+                                      {/* Name Column */}
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="flex items-center gap-2.5">
+                                          <div className="h-7 w-7 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-bold text-xs shrink-0">
+                                            {userAccess.userName.charAt(0)}
+                                          </div>
+                                          <div>
+                                            <div className="font-semibold text-gray-900">{userAccess.userName}</div>
+                                            <div className="text-[10px] text-gray-400 capitalize">{userAccess.userRole.replace('_', ' ')}</div>
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      {/* Email Column */}
+                                      <td className="px-4 py-3 whitespace-nowrap text-gray-600 font-mono text-[11px]">
+                                        {userAccess.userEmail}
+                                      </td>
+
+                                      {/* Access Column (2 possible values + optional (default) suffix) */}
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        {userAccess.access === 'Edit and Download' ? (
+                                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs">
+                                            <Edit2 size={11} className="text-emerald-600 shrink-0" />
+                                            <span>Edit and Download</span>
+                                            {userAccess.isDefault && (
+                                              <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100/90 px-1.5 py-0.2 rounded" title={userAccess.defaultReason || 'Default role permission'}>
+                                                (default)
+                                              </span>
+                                            )}
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200/80 shadow-2xs">
+                                            <Download size={11} className="text-sky-600 shrink-0" />
+                                            <span>Download</span>
+                                            {userAccess.isDefault && (
+                                              <span className="text-[10px] font-medium text-sky-700 bg-sky-100/90 px-1.5 py-0.2 rounded" title={userAccess.defaultReason || 'Default role permission'}>
+                                                (default)
+                                              </span>
+                                            )}
+                                          </span>
+                                        )}
+                                      </td>
+
+                                      {/* Action Column */}
+                                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenEditAccess(course, userAccess)}
+                                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
+                                          title="Edit Access"
+                                        >
+                                          <Edit2 size={11} />
+                                          <span>Edit</span>
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+
+                                  {courseUsers.length === 0 && (
+                                    <tr>
+                                      <td colSpan={4} className="text-center py-6 text-gray-400 italic">
+                                        No users currently assigned to this course. Click "Assign User" to add access.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+              {sortedCourses.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-gray-500 italic">
+                    No courses found matching the selected filters for academic year {selectedYear}.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
+
+      {/* Edit User Course Access Modal */}
+      <Modal
+        isOpen={!!editingAccessData}
+        onClose={() => setEditingAccessData(null)}
+        title="Edit Course Access"
+        maxWidth="max-w-lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <button
+              type="button"
+              onClick={handleDeleteAccessFromModal}
+              className="flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer"
+              title="Remove user access from this course"
+            >
+              <Trash2 size={15} className="mr-1.5" /> Delete Access
+            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingAccessData(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEditAccess}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        }
+      >
+        {editingAccessData && (
+          <div className="space-y-4">
+            {/* User & Course Context (Read-Only) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">
+                  {editingAccessData.userAccess.userName.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-bold text-gray-900 truncate">
+                    {editingAccessData.userAccess.userName}
+                  </h4>
+                  <p className="text-xs text-gray-500 font-mono truncate">
+                    {editingAccessData.userAccess.userEmail}
+                  </p>
+                </div>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-2xs capitalize">
+                  {editingAccessData.userAccess.userRole.replace('_', ' ')}
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs text-gray-600">
+                <span>Target Course:</span>
+                <span className="font-bold text-indigo-700">
+                  {editingAccessData.courseId} - {editingAccessData.courseName}
+                </span>
+              </div>
+            </div>
+
+            {/* Editable Access Level Radio Options */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                Permission / Access Level
+              </label>
+              <div className="space-y-2.5">
+                {/* Edit and Download */}
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    editingAccessLevel === 'Edit and Download'
+                      ? 'border-emerald-500 bg-emerald-50/50 shadow-2xs'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="editAccessLevel"
+                    value="Edit and Download"
+                    checked={editingAccessLevel === 'Edit and Download'}
+                    onChange={() => setEditingAccessLevel('Edit and Download')}
+                    className="h-4 w-4 mt-0.5 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-900">Edit and Download</span>
+                      <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">Full Access</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Allows full access to edit syllabus, upload files, update course data, and download final PDFs.
+                    </p>
+                  </div>
+                </label>
+
+                {/* Download */}
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    editingAccessLevel === 'Download'
+                      ? 'border-blue-500 bg-blue-50/50 shadow-2xs'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="editAccessLevel"
+                    value="Download"
+                    checked={editingAccessLevel === 'Download'}
+                    onChange={() => setEditingAccessLevel('Download')}
+                    className="h-4 w-4 mt-0.5 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-900">Download</span>
+                      <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded">View Only</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Allows read-only access to view course reports and download generated syllabus and cover documents.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Default Status Suffix Option */}
+            <div className="pt-2 border-t border-gray-100">
+              <label className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={editingIsDefault}
+                    onChange={(e) => setEditingIsDefault(e.target.checked)}
+                    className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-800 text-xs">Set as System Default Permission</span>
+                    <p className="text-[11px] text-gray-500">Displays the <span className="font-semibold text-gray-700">(default)</span> tag in table</p>
+                  </div>
+                </div>
+                {editingIsDefault && (
+                  <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                    (default)
+                  </span>
+                )}
+              </label>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Assign User to Course Modal */}
+      <Modal
+        isOpen={!!assigningCourse}
+        onClose={() => setAssigningCourse(null)}
+        title={`Assign User to Course - ${assigningCourse?.id}`}
+        maxWidth="max-w-lg"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setAssigningCourse(null)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveAssignUser}
+              disabled={!assignUserId}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              Assign User
+            </button>
+          </>
+        }
+      >
+        {assigningCourse && (
+          <div className="space-y-4">
+            {/* Target Course Banner */}
+            <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 text-xs">
+              <span className="text-gray-500 block mb-0.5">Target Course:</span>
+              <span className="font-bold text-indigo-900 text-sm">
+                {assigningCourse.id}: {assigningCourse.name}
+              </span>
+            </div>
+
+            {/* User Select Dropdown */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                Select User
+              </label>
+              <select
+                value={assignUserId}
+                onChange={(e) => setAssignUserId(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white cursor-pointer"
+              >
+                <option value="">Select a user to assign...</option>
+                {(users || MOCK_USERS).map((u) => {
+                  const alreadyAssigned = (courseAssignments[assigningCourse.id] || []).some(a => a.userId === u.id);
+                  return (
+                    <option key={u.id} value={u.id} disabled={alreadyAssigned}>
+                      {u.name} ({u.email}) - {u.role.replace('_', ' ')} {alreadyAssigned ? '— [Already Assigned]' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Access Level Selector */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                Permission Level
+              </label>
+              <div className="space-y-2.5">
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    assignAccessLevel === 'Edit and Download'
+                      ? 'border-emerald-500 bg-emerald-50/50 shadow-2xs'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assignAccessLevel"
+                    value="Edit and Download"
+                    checked={assignAccessLevel === 'Edit and Download'}
+                    onChange={() => setAssignAccessLevel('Edit and Download')}
+                    className="h-4 w-4 mt-0.5 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-900">Edit and Download</span>
+                      <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">Full Access</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Full edit and upload permission for syllabus files and course information.
+                    </p>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    assignAccessLevel === 'Download'
+                      ? 'border-blue-500 bg-blue-50/50 shadow-2xs'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assignAccessLevel"
+                    value="Download"
+                    checked={assignAccessLevel === 'Download'}
+                    onChange={() => setAssignAccessLevel('Download')}
+                    className="h-4 w-4 mt-0.5 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-900">Download</span>
+                      <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded">View Only</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Download and review permissions only.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Default Suffix Toggle */}
+            <div className="pt-2 border-t border-gray-100">
+              <label className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={assignIsDefault}
+                    onChange={(e) => setAssignIsDefault(e.target.checked)}
+                    className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-800 text-xs">Set as System Default Permission</span>
+                    <p className="text-[11px] text-gray-500">Append <span className="font-semibold text-gray-700">(default)</span> to access badge</p>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Add/Edit Course Modal */}
       <Modal 
@@ -1541,14 +2536,57 @@ const CourseManagement = ({
         onClose={() => { setIsAddModalOpen(false); setEditingCourse(null); }} 
         title={editingCourse ? "Edit Course" : "Create New Course"}
         footer={
-          <>
-            <button onClick={() => { setIsAddModalOpen(false); setEditingCourse(null); }} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              Cancel
-            </button>
-            <button onClick={handleSaveCourse} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
-              {editingCourse ? "Save Changes" : "Create Course"}
-            </button>
-          </>
+          editingCourse ? (
+            <div className="flex items-center justify-between w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = editingCourse;
+                  setIsAddModalOpen(false);
+                  setEditingCourse(null);
+                  setCourseToDelete(target);
+                  setDeleteConfirmOpen(true);
+                }}
+                className="flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer"
+                title="Delete this course"
+              >
+                <Trash2 size={15} className="mr-1.5" /> Delete Course
+              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  type="button"
+                  onClick={() => { setIsAddModalOpen(false); setEditingCourse(null); }} 
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleSaveCourse} 
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-end gap-2 w-full">
+              <button 
+                type="button"
+                onClick={() => { setIsAddModalOpen(false); setEditingCourse(null); }} 
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={handleSaveCourse} 
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
+              >
+                Create Course
+              </button>
+            </div>
+          )
         }
       >
         <div className="space-y-4">
@@ -1641,38 +2679,70 @@ const CourseManagement = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select 
-                    value={editingDepartment}
-                    onChange={(e) => {
-                      setEditingDepartment(e.target.value);
-                      setEditingCurriculum('');
-                    }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                  >
-                    <option value="">Select Department...</option>
-                    {departments.map((dept) => (
-                      <option key={dept.id} value={dept.name}>{dept.name}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Department</label>
+                    {!editingCourse && (
+                      <span className="text-[11px] text-gray-400 font-normal">From filter</span>
+                    )}
+                  </div>
+                  {!editingCourse ? (
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={editingDepartment}
+                      placeholder="No department selected"
+                      className="w-full border border-gray-200 bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm cursor-not-allowed select-none focus:outline-none"
+                    />
+                  ) : (
+                    <select 
+                      value={editingDepartment}
+                      onChange={(e) => {
+                        setEditingDepartment(e.target.value);
+                        setEditingCurriculum('');
+                      }}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                    >
+                      <option value="">Select Department...</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={dept.name}>{dept.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Curriculum</label>
-                  <select 
-                    value={editingCurriculum}
-                    onChange={(e) => setEditingCurriculum(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                  >
-                    <option value="">Select Curriculum...</option>
-                    {curriculums
-                      .filter(curr => {
-                        const dept = departments.find(d => d.name === editingDepartment);
-                        return !dept || curr.departmentId === dept.id;
-                      })
-                      .map((curr) => (
-                        <option key={curr.id} value={curr.name}>{curr.name}</option>
-                      ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Curriculum</label>
+                    {!editingCourse && (
+                      <span className="text-[11px] text-gray-400 font-normal">From filter</span>
+                    )}
+                  </div>
+                  {!editingCourse ? (
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={editingCurriculum}
+                      placeholder="No curriculum selected"
+                      className="w-full border border-gray-200 bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm cursor-not-allowed select-none focus:outline-none"
+                    />
+                  ) : (
+                    <select 
+                      value={editingCurriculum}
+                      onChange={(e) => setEditingCurriculum(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
+                    >
+                      <option value="">Select Curriculum...</option>
+                      {curriculums
+                        .filter(curr => {
+                          const dept = departments.find(d => d.name === editingDepartment);
+                          return !dept || curr.departmentId === dept.id;
+                        })
+                        .map((curr) => (
+                          <option key={curr.id} value={curr.name}>{curr.name}</option>
+                        ))}
+                    </select>
+                  )}
                 </div>
               </div>
             </div>
@@ -1682,9 +2752,11 @@ const CourseManagement = ({
                 onClick={() => {
                   setBulkFileUploaded(true);
                   setBulkFileName('courses_template_import.xlsx');
+                  const activeDeptName = editingDepartment || selectedDepartment || (departments[0]?.name || 'Mathematics and Computer Science');
+                  const activeCurrName = editingCurriculum || selectedCurriculum || 'Computer Science';
                   setBulkMockCourses([
-                    { id: 'CS102', name: 'Data Structures and Algorithms', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: selectedYear, semester: '2' },
-                    { id: 'MATH301', name: 'Abstract Algebra', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: selectedYear, semester: '1' }
+                    { id: 'CS102', name: 'Data Structures and Algorithms', department: activeDeptName, curriculum: activeCurrName, year: selectedYear, semester: '2' },
+                    { id: 'MATH301', name: 'Abstract Algebra', department: activeDeptName, curriculum: activeCurrName, year: selectedYear, semester: '1' }
                   ]);
                 }}
                 className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
@@ -2736,10 +3808,12 @@ const CourseList = ({
   // Year selector - single choice, defaults to latest year (no 'all' choice)
   const [selectedYear, setSelectedYear] = useState('2024');
 
-  // Multi-select filters next to course list (empty = all)
+  // Top Dropdown Filters: Department & Curriculum
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedCurriculum, setSelectedCurriculum] = useState<string>('');
+
+  // Column Filter: Semester (empty = all)
   const [selectedSemesters, setSelectedSemesters] = useState<string[]>([]);
-  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
-  const [selectedCurriculums, setSelectedCurriculums] = useState<string[]>([]);
 
   // Search & Sort states
   const [searchQuery, setSearchQuery] = useState('');
@@ -2754,30 +3828,35 @@ const CourseList = ({
     }
   };
 
-  const toggleDepartment = (deptName: string) => {
-    if (selectedDepartments.includes(deptName)) {
-      setSelectedDepartments(selectedDepartments.filter(d => d !== deptName));
-    } else {
-      setSelectedDepartments([...selectedDepartments, deptName]);
-    }
+  const handleSelectAllSemesters = () => {
+    setSelectedSemesters(['1', '2', 'Summer']);
   };
 
-  const toggleCurriculum = (currName: string) => {
-    if (selectedCurriculums.includes(currName)) {
-      setSelectedCurriculums(selectedCurriculums.filter(c => c !== currName));
-    } else {
-      setSelectedCurriculums([...selectedCurriculums, currName]);
+  const handleClearSemesters = () => {
+    setSelectedSemesters([]);
+  };
+
+  const handleDepartmentChange = (deptName: string) => {
+    setSelectedDepartment(deptName);
+    if (deptName && selectedCurriculum) {
+      const parentDept = departments.find(d => d.name === deptName);
+      const curr = curriculums.find(c => c.name === selectedCurriculum);
+      if (curr && parentDept && curr.departmentId !== parentDept.id) {
+        setSelectedCurriculum('');
+      }
     }
   };
 
   const clearAllFilters = () => {
+    setSelectedDepartment('');
+    setSelectedCurriculum('');
     setSelectedSemesters([]);
-    setSelectedDepartments([]);
-    setSelectedCurriculums([]);
     setSearchQuery('');
   };
 
-  const hasActiveFilters = selectedSemesters.length > 0 || selectedDepartments.length > 0 || selectedCurriculums.length > 0 || searchQuery !== '';
+  const hasActiveFilters = Boolean(
+    selectedDepartment || selectedCurriculum || selectedSemesters.length > 0 || searchQuery
+  );
 
   const handleOpenErrors = (course: any, file: CourseFile) => {
     setSelectedErrorFile({ course, file });
@@ -2797,8 +3876,8 @@ const CourseList = ({
     
     const matchesYear = (course.year || '2024') === selectedYear;
     const matchesSemester = selectedSemesters.length === 0 || selectedSemesters.includes(course.semester || '1');
-    const matchesDept = selectedDepartments.length === 0 || selectedDepartments.includes(course.department || '');
-    const matchesCurriculum = selectedCurriculums.length === 0 || selectedCurriculums.includes(course.curriculum || '');
+    const matchesDept = !selectedDepartment || course.department === selectedDepartment;
+    const matchesCurriculum = !selectedCurriculum || course.curriculum === selectedCurriculum;
 
     const matchesSearch = (
       course.id.toLowerCase().includes(query) ||
@@ -2821,6 +3900,9 @@ const CourseList = ({
     } else if (sortField === 'name') {
       aVal = a.name;
       bVal = b.name;
+    } else if (sortField === 'semester') {
+      aVal = a.semester || '1';
+      bVal = b.semester || '1';
     } else if (sortField === 'status') {
       const fileA = getCourseFile(a.id);
       const fileB = getCourseFile(b.id);
@@ -2848,13 +3930,15 @@ const CourseList = ({
   };
 
   return (
-    <div className="p-6 space-y-6 w-full">
-      {/* Top Header: Title + Year Selector (Top Left) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">Courses</h1>
+    <div className="p-6 space-y-5 w-full">
+      {/* Top Header: Title + Dropdown Filters (Year, Dept, Curr) */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Left: Title + Year + Department + Curriculum Dropdown Selects */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h1 className="text-2xl font-bold text-gray-900 mr-1">Courses</h1>
           
-          <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-sm px-3 py-1.5 ml-1">
+          {/* Year Dropdown */}
+          <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-2xs px-3 py-1.5">
             <span className="text-xs font-semibold text-gray-500 mr-2 uppercase tracking-wide">Year:</span>
             <select 
               value={selectedYear}
@@ -2867,317 +3951,273 @@ const CourseList = ({
               <option value="2022">2022</option>
             </select>
           </div>
+
+          {/* Department Searchable Dropdown */}
+          <SearchableSelect
+            label="Department"
+            value={selectedDepartment}
+            onChange={handleDepartmentChange}
+            options={departments.map(d => ({ value: d.name, label: d.name, subtext: d.code }))}
+            allLabel="All Departments"
+            icon={Building2}
+          />
+
+          {/* Curriculum Searchable Dropdown */}
+          <SearchableSelect
+            label="Curriculum"
+            value={selectedCurriculum}
+            onChange={setSelectedCurriculum}
+            options={curriculums
+              .filter(c => {
+                if (!selectedDepartment) return true;
+                const parentDept = departments.find(d => d.name === selectedDepartment);
+                return parentDept && c.departmentId === parentDept.id;
+              })
+              .map(c => ({ value: c.name, label: c.name, subtext: c.code }))
+            }
+            allLabel="All Curriculums"
+            icon={GraduationCap}
+          />
         </div>
       </div>
 
-      {/* Main Layout: Course List on Left (flex-1), Multi-Select Filter Panel on Right (w-72) */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* Left Area: Search Bar + Course Table */}
-        <div className="flex-1 w-full min-w-0 space-y-4">
-          {/* Search Bar + Results Status */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search course ID, name, status..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
-              />
+      {/* Search Bar + Active Filters Status */}
+      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
             </div>
-            <div className="text-xs text-gray-500 px-2 whitespace-nowrap">
-              Showing <span className="font-semibold text-gray-900">{sortedCourses.length}</span> course{sortedCourses.length === 1 ? '' : 's'} in <span className="font-semibold text-indigo-600">{selectedYear}</span>
-            </div>
+            <input
+              type="text"
+              placeholder="Search course ID, name, status..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
+            />
           </div>
-
-          {/* Course Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th 
-                      onClick={() => handleSort('id')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Course ID
-                        {sortField === 'id' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('name')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Course Name
-                        {sortField === 'name' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-
-                    <th 
-                      onClick={() => handleSort('status')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Status
-                        {sortField === 'status' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('time')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Updated Time
-                        {sortField === 'time' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedCourses.map(course => {
-                    const file = getCourseFile(course.id);
-
-                    return (
-                      <tr 
-                        key={course.id} 
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-700">
-                          <span className="bg-indigo-50 px-2.5 py-1 rounded-md text-xs tracking-wider uppercase">
-                            {course.id}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {course.name}
-                        </td>
-
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {file ? (
-                            file.status === 'failed' ? (
-                              <Badge 
-                                variant="failed" 
-                                onClick={() => handleOpenErrors(course, file)}
-                                title="Click to view processing errors"
-                              >
-                                <AlertCircle size={12} className="mr-1 inline text-red-600 shrink-0" />
-                                <span>Failed</span>
-                                <span className="ml-1 text-[10px] text-red-700 font-semibold bg-red-100/90 px-1.5 py-0.2 rounded-full">
-                                  {file.errors?.length || 1}
-                                </span>
-                              </Badge>
-                            ) : (
-                              <Badge variant={file.status}>
-                                {file.status.charAt(0).toUpperCase() + file.status.slice(1)}
-                              </Badge>
-                            )
-                          ) : (
-                            <span className="text-gray-400 text-xs italic">No Files</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {file ? (
-                            <div className="flex items-center text-xs text-gray-500">
-                              <CheckCircle2 size={12} className="mr-1 text-gray-400" />
-                              {file.time}
-                            </div>
-                          ) : (
-                            '-'
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                          {file?.status === 'generated' && (
-                            <button 
-                              className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
-                              title="Download PDF"
-                            >
-                              <Download size={14} />
-                            </button>
-                          )}
-                          {file?.status === 'failed' && (
-                            <button 
-                              onClick={() => handleOpenErrors(course, file)}
-                              className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
-                              title="View Processing Errors"
-                            >
-                              <AlertTriangle size={14} />
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => setUploadTargetCourse(course)}
-                            className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
-                            title={file?.status === 'failed' ? "Re-upload Files" : "Upload Files"}
-                          >
-                            <UploadCloud size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {sortedCourses.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="text-center py-8 text-gray-500 italic">
-                        No courses found for academic year {selectedYear}.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div className="text-xs text-gray-500 px-2 whitespace-nowrap">
+            Showing <span className="font-semibold text-gray-900">{sortedCourses.length}</span> course{sortedCourses.length === 1 ? '' : 's'} in <span className="font-semibold text-indigo-600">{selectedYear}</span>
           </div>
         </div>
 
-        {/* Right Area: Multi-Select Filter Panel Sidebar */}
-        <div className="w-full lg:w-72 shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-6 sticky top-6">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-            <div className="flex items-center gap-2 text-gray-900 font-semibold text-sm">
-              <Filter size={16} className="text-indigo-600" />
-              <span>Filters</span>
-            </div>
-            {hasActiveFilters && (
-              <button 
-                onClick={clearAllFilters}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
-                title="Reset all filters"
-              >
-                <RotateCcw size={12} /> Reset
-              </button>
+        {/* Active Filters Bar */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100 text-xs">
+            <span className="text-gray-500 font-medium">Active filters:</span>
+            {selectedDepartment && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Dept: {selectedDepartment}
+                <button onClick={() => setSelectedDepartment('')} className="hover:text-indigo-900 cursor-pointer"><X size={12} /></button>
+              </span>
             )}
-          </div>
-
-          {/* Semester Multi-Select */}
-          <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Semester</span>
-              <span className="text-[11px] text-gray-400 font-medium">
-                {selectedSemesters.length === 0 ? 'All' : `${selectedSemesters.length} selected`}
+            {selectedCurriculum && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Curriculum: {selectedCurriculum}
+                <button onClick={() => setSelectedCurriculum('')} className="hover:text-indigo-900 cursor-pointer"><X size={12} /></button>
               </span>
-            </div>
-            <div className="space-y-1.5">
-              {[
-                { id: '1', label: 'Semester 1' },
-                { id: '2', label: 'Semester 2' },
-                { id: 'Summer', label: 'Summer' }
-              ].map(sem => {
-                const isChecked = selectedSemesters.includes(sem.id);
+            )}
+            {selectedSemesters.length > 0 && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Semesters: {selectedSemesters.map(s => s === 'Summer' ? 'Summer' : `Sem ${s}`).join(', ')}
+                <button onClick={() => setSelectedSemesters([])} className="hover:text-indigo-900 cursor-pointer"><X size={12} /></button>
+              </span>
+            )}
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded-full font-medium">
+                Search: "{searchQuery}"
+                <button onClick={() => setSearchQuery('')} className="hover:text-gray-900 cursor-pointer"><X size={12} /></button>
+              </span>
+            )}
+            <button
+              onClick={clearAllFilters}
+              className="text-indigo-600 hover:text-indigo-800 font-semibold underline ml-1 cursor-pointer flex items-center gap-1"
+            >
+              <RotateCcw size={11} /> Clear all
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Course Table (Full Width) */}
+      <div className="bg-white rounded-xl shadow-2xs border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th 
+                  onClick={() => handleSort('id')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Course ID
+                    {sortField === 'id' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('name')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Course Name
+                    {sortField === 'name' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <SemesterHeaderFilter
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={() => handleSort('semester')}
+                  selectedSemesters={selectedSemesters}
+                  onToggleSemester={toggleSemester}
+                  onSelectAllSemesters={handleSelectAllSemesters}
+                  onClearSemesters={handleClearSemesters}
+                />
+                <th 
+                  onClick={() => handleSort('status')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Status
+                    {sortField === 'status' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('time')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Updated Time
+                    {sortField === 'time' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedCourses.map(course => {
+                const file = getCourseFile(course.id);
+
                 return (
-                  <label 
-                    key={sem.id}
-                    className={`flex items-center justify-between p-2 rounded-lg text-sm cursor-pointer transition-colors ${
-                      isChecked ? 'bg-indigo-50/70 text-indigo-900 font-medium' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
+                  <tr 
+                    key={course.id} 
+                    className="hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <input 
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleSemester(sem.id)}
-                        className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                      />
-                      <span>{sem.label}</span>
-                    </div>
-                  </label>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-700">
+                      <span className="bg-indigo-50 px-2.5 py-1 rounded-md text-xs tracking-wider uppercase">
+                        {course.id}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <div className="flex items-center gap-2">
+                        <span>{course.name}</span>
+                        {(() => {
+                          const parentCurr = curriculums.find(c => c.name === course.curriculum);
+                          if (parentCurr?.coverFile) {
+                            return (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded" title={`Shared Cover: ${parentCurr.coverFile} (${parentCurr.name})`}>
+                                <FileText size={11} className="text-indigo-500" />
+                                <span>{parentCurr.code} Cover</span>
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                        {course.semester === 'Summer' ? 'Summer' : `Sem ${course.semester || '1'}`}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {file ? (
+                        file.status === 'failed' ? (
+                          <Badge 
+                            variant="failed" 
+                            onClick={() => handleOpenErrors(course, file)}
+                            title="Click to view processing errors"
+                          >
+                            <AlertCircle size={12} className="mr-1 inline text-red-600 shrink-0" />
+                            <span>Failed</span>
+                            <span className="ml-1 text-[10px] text-red-700 font-semibold bg-red-100/90 px-1.5 py-0.2 rounded-full">
+                              {file.errors?.length || 1}
+                            </span>
+                          </Badge>
+                        ) : (
+                          <Badge variant={file.status}>
+                            {file.status.charAt(0).toUpperCase() + file.status.slice(1)}
+                          </Badge>
+                        )
+                      ) : (
+                        <span className="text-gray-400 text-xs italic">No Files</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {file ? (
+                        <div className="flex items-center text-xs text-gray-500">
+                          <CheckCircle2 size={12} className="mr-1 text-gray-400" />
+                          {file.time}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                      {file?.status === 'generated' && (
+                        <button 
+                          className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
+                          title="Download PDF"
+                        >
+                          <Download size={14} />
+                        </button>
+                      )}
+                      {file?.status === 'failed' && (
+                        <button 
+                          onClick={() => handleOpenErrors(course, file)}
+                          className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
+                          title="View Processing Errors"
+                        >
+                          <AlertTriangle size={14} />
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => setUploadTargetCourse(course)}
+                        className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
+                        title={file?.status === 'failed' ? "Re-upload Files" : "Upload Files"}
+                      >
+                        <UploadCloud size={14} />
+                      </button>
+                    </td>
+                  </tr>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Department Multi-Select */}
-          <div className="pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Department</span>
-              <span className="text-[11px] text-gray-400 font-medium">
-                {selectedDepartments.length === 0 ? 'All' : `${selectedDepartments.length} selected`}
-              </span>
-            </div>
-            <div className="space-y-1.5">
-              {departments.map(dept => {
-                const isChecked = selectedDepartments.includes(dept.name);
-                return (
-                  <label 
-                    key={dept.id}
-                    className={`flex items-start gap-2.5 p-2 rounded-lg text-sm cursor-pointer transition-colors ${
-                      isChecked ? 'bg-indigo-50/70 text-indigo-900 font-medium' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <input 
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleDepartment(dept.name)}
-                      className="h-4 w-4 mt-0.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer shrink-0"
-                    />
-                    <span className="leading-snug text-xs font-medium">{dept.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Curriculum Multi-Select */}
-          <div className="pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Curriculum</span>
-              <span className="text-[11px] text-gray-400 font-medium">
-                {selectedCurriculums.length === 0 ? 'All' : `${selectedCurriculums.length} selected`}
-              </span>
-            </div>
-            <div className="space-y-1.5 max-h-60 overflow-y-auto">
-              {curriculums
-                .filter(curr => {
-                  if (selectedDepartments.length === 0) return true;
-                  const parentDept = departments.find(d => d.id === curr.departmentId);
-                  return parentDept && selectedDepartments.includes(parentDept.name);
-                })
-                .map(curr => {
-                  const isChecked = selectedCurriculums.includes(curr.name);
-                  return (
-                    <label 
-                      key={curr.id}
-                      className={`flex items-start gap-2.5 p-2 rounded-lg text-sm cursor-pointer transition-colors ${
-                        isChecked ? 'bg-indigo-50/70 text-indigo-900 font-medium' : 'hover:bg-gray-50 text-gray-700'
-                      }`}
-                    >
-                      <input 
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleCurriculum(curr.name)}
-                        className="h-4 w-4 mt-0.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer shrink-0"
-                      />
-                      <span className="leading-snug text-xs font-medium">{curr.name}</span>
-                    </label>
-                  );
-                })}
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-gray-100">
-            <p className="text-[11px] text-gray-400 text-center italic">
-              Unselected categories default to showing all
-            </p>
-          </div>
+              {sortedCourses.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-center py-8 text-gray-500 italic">
+                    No courses found matching the selected filters for academic year {selectedYear}.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -3499,15 +4539,8 @@ export default function App() {
           )}
         </nav>
 
-        {/* Global Settings (Language & Theme) for Authenticated Users */}
-        <div className="px-4 py-4 space-y-3 border-t border-gray-200">
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2">
-            <Globe size={16} className="text-gray-500 mr-2 shrink-0" />
-            <select className="w-full bg-transparent text-sm text-gray-700 outline-none cursor-pointer">
-              <option value="en">English</option>
-              <option value="th">ภาษาไทย</option>
-            </select>
-          </div>
+        {/* Theme Settings for Authenticated Users */}
+        <div className="px-4 py-3 border-t border-gray-200">
           <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2">
             <Moon size={16} className="text-gray-500 mr-2 shrink-0" />
             <select className="w-full bg-transparent text-sm text-gray-700 outline-none cursor-pointer">
@@ -3555,6 +4588,7 @@ export default function App() {
             curriculums={curriculums} 
             files={files} 
             setFiles={setFiles} 
+            users={users}
           />
         )}
         {activeTab === 'cover_management' && (
