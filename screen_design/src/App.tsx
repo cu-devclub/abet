@@ -5,7 +5,7 @@ import {
   Moon, Building2, GraduationCap, BookMarked,
   Search, ArrowUpDown, ChevronUp, ChevronDown, Filter, RotateCcw,
   ChevronRight, AlertTriangle, FileText, Eye, Layers,
-  Info, ShieldCheck, UserPlus
+  Info, ShieldCheck, UserPlus, Check
 } from 'lucide-react';
 
 
@@ -99,6 +99,7 @@ const MOCK_COURSES = [
   { id: 'CS101', name: 'Introduction to Computer Science', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
   { id: 'MATH205', name: 'Calculus and Linear Algebra', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: '2024', semester: '1' },
   { id: 'CS102', name: 'Data Structures and Algorithms', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '2' },
+  { id: 'CS305', name: 'Software Engineering', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
   { id: 'EE101', name: 'Circuit Theory I', department: 'Electrical Engineering', curriculum: 'Electrical Engineering', year: '2024', semester: '2' }
 ];
 
@@ -1719,8 +1720,9 @@ const CourseManagement = ({
   const handleOpenAssignUser = (course: any) => {
     setAssigningCourse(course);
     const existingUserIds = (courseAssignments[course.id] || []).map(a => a.userId);
-    const availableUser = (users || MOCK_USERS).find(u => !existingUserIds.includes(u.id));
-    setAssignUserId(availableUser ? String(availableUser.id) : (users || MOCK_USERS)[0]?.id ? String((users || MOCK_USERS)[0].id) : '');
+    const assignableUsers = (users || MOCK_USERS).filter(u => u.role !== 'admin' && u.role !== 'super_admin');
+    const availableUser = assignableUsers.find(u => !existingUserIds.includes(u.id));
+    setAssignUserId(availableUser ? String(availableUser.id) : assignableUsers[0]?.id ? String(assignableUsers[0].id) : '');
     setAssignAccessLevel('Edit and Download');
     setAssignIsDefault(false);
   };
@@ -1778,12 +1780,31 @@ const CourseManagement = ({
         </div>
       )}
 
-      {/* Top Header: Title + Dropdown Filters (Year, Dept, Curr) + Actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        {/* Left: Title + Year + Department + Curriculum Dropdown Selects */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="text-2xl font-bold text-gray-900 mr-1">Course Management</h1>
+      {/* Top Header: Title + Actions on Row 1, Filters on Row 2 under Title */}
+      <div className="space-y-4">
+        {/* Row 1: Title + Action Buttons */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h1 className="text-2xl font-bold text-gray-900">Curriculum Management</h1>
           
+          {/* Actions */}
+          <div className="flex items-center gap-3 shrink-0">
+            {selectedCourseIds.length > 0 && (
+              <button 
+                onClick={() => { setCourseToDelete(null); setDeleteConfirmOpen(true); }} 
+                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm transition-colors shadow-2xs whitespace-nowrap cursor-pointer"
+              >
+                <Trash2 size={16} className="mr-2" /> Delete Selected ({selectedCourseIds.length})
+              </button>
+            )}
+            
+            <button onClick={handleOpenAdd} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-2xs whitespace-nowrap cursor-pointer">
+              <Plus size={16} className="mr-2" /> Add Course
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Filters under page title */}
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Year Dropdown */}
           <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-2xs px-3 py-1.5">
             <span className="text-xs font-semibold text-gray-500 mr-2 uppercase tracking-wide">Year:</span>
@@ -1825,22 +1846,6 @@ const CourseManagement = ({
             allLabel="All Curriculums"
             icon={GraduationCap}
           />
-        </div>
-        
-        {/* Actions */}
-        <div className="flex items-center gap-3 shrink-0">
-          {selectedCourseIds.length > 0 && (
-            <button 
-              onClick={() => { setCourseToDelete(null); setDeleteConfirmOpen(true); }} 
-              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm transition-colors shadow-2xs whitespace-nowrap cursor-pointer"
-            >
-              <Trash2 size={16} className="mr-2" /> Delete Selected ({selectedCourseIds.length})
-            </button>
-          )}
-          
-          <button onClick={handleOpenAdd} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-2xs whitespace-nowrap cursor-pointer">
-            <Plus size={16} className="mr-2" /> Add Course
-          </button>
         </div>
       </div>
 
@@ -1990,13 +1995,27 @@ const CourseManagement = ({
                 const isSelected = selectedCourseIds.includes(course.id);
                 const isExpanded = expandedCourseIds.includes(course.id);
                 const courseUsers = courseAssignments[course.id] || [];
+                const visibleCourseUsers = courseUsers.filter(u => u.userRole !== 'admin' && u.userRole !== 'super_admin');
+                const instructorCount = visibleCourseUsers.filter(u => u.userRole === 'instructor').length;
+                const staffCount = visibleCourseUsers.filter(u => u.userRole === 'staff').length;
+                const hasNoAssignedUsers = visibleCourseUsers.length === 0;
 
                 return (
                   <React.Fragment key={course.id}>
                     <tr 
-                      onClick={() => handleToggleSelect(course.id)}
-                      className={`hover:bg-gray-50/80 transition-colors cursor-pointer ${
-                        isSelected ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : isExpanded ? 'bg-slate-50/60' : ''
+                      onClick={() => toggleCourseExpand(course.id)}
+                      className={`transition-colors cursor-pointer ${
+                        hasNoAssignedUsers 
+                          ? (isSelected 
+                              ? 'bg-amber-100/70 hover:bg-amber-100/90' 
+                              : isExpanded 
+                              ? 'bg-amber-50/90 hover:bg-amber-100/80' 
+                              : 'bg-amber-50/50 hover:bg-amber-100/60')
+                          : (isSelected 
+                              ? 'bg-indigo-50/40 hover:bg-indigo-50/60' 
+                              : isExpanded 
+                              ? 'bg-slate-50/60' 
+                              : 'hover:bg-gray-50/80')
                       }`}
                     >
                       {/* Expand Button Column */}
@@ -2044,28 +2063,26 @@ const CourseManagement = ({
                               toggleCourseExpand(course.id);
                             }}
                             className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer ${
-                              isExpanded 
+                              hasNoAssignedUsers
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300/80 hover:bg-amber-200/80'
+                                : isExpanded 
                                 ? 'bg-indigo-100 text-indigo-800' 
                                 : 'bg-gray-100 hover:bg-indigo-50 text-gray-600 hover:text-indigo-700'
                             }`}
-                            title="Click to view assigned users with access"
+                            title={hasNoAssignedUsers ? "Warning: 0 users assigned. Click to assign." : "Click to view assigned users with access"}
                           >
-                            <Users size={11} className={isExpanded ? "text-indigo-700" : "text-gray-500"} />
-                            <span>{courseUsers.length} user{courseUsers.length === 1 ? '' : 's'}</span>
+                            {hasNoAssignedUsers ? (
+                              <>
+                                <AlertTriangle size={11} className="text-amber-700 shrink-0" />
+                                <span>0 assigned</span>
+                              </>
+                            ) : (
+                              <>
+                                <Users size={11} className={isExpanded ? "text-indigo-700" : "text-gray-500"} />
+                                <span>{visibleCourseUsers.length} user{visibleCourseUsers.length === 1 ? '' : 's'}</span>
+                              </>
+                            )}
                           </button>
-
-                          {(() => {
-                            const parentCurr = curriculums.find(c => c.name === course.curriculum);
-                            if (parentCurr?.coverFile) {
-                              return (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded" title={`Shared Cover: ${parentCurr.coverFile} (${parentCurr.name})`}>
-                                  <FileText size={11} className="text-indigo-500" />
-                                  <span>{parentCurr.code} Cover</span>
-                                </span>
-                              );
-                            }
-                            return null;
-                          })()}
                         </div>
                       </td>
 
@@ -2116,14 +2133,17 @@ const CourseManagement = ({
                                   <Users size={16} />
                                 </div>
                                 <div>
-                                  <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                    <span>Assigned Users with Access</span>
-                                    <span className="text-[11px] font-normal lowercase bg-indigo-50 text-indigo-700 border border-indigo-200/60 px-2 py-0.2 rounded-full font-sans">
-                                      {courseUsers.length} user{courseUsers.length === 1 ? '' : 's'}
+                                  <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex flex-wrap items-center gap-2">
+                                    <span>Assigned users with course portfolio access permissions</span>
+                                    <span className="text-[11px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2 py-0.5 rounded-full font-sans">
+                                      {instructorCount} Instructor{instructorCount === 1 ? '' : 's'}
+                                    </span>
+                                    <span className="text-[11px] font-medium bg-blue-50 text-blue-800 border border-blue-200/80 px-2 py-0.5 rounded-full font-sans">
+                                      {staffCount} Staff
                                     </span>
                                   </h4>
                                   <p className="text-[11px] text-gray-500">
-                                    Permissions for course <strong className="text-gray-700">{course.id}</strong> ({course.name})
+                                    For course <strong className="text-gray-700">{course.id}</strong> ({course.name})
                                   </p>
                                 </div>
                               </div>
@@ -2134,7 +2154,7 @@ const CourseManagement = ({
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-indigo-200 hover:border-indigo-300 text-indigo-700 hover:bg-indigo-50 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
                               >
                                 <UserPlus size={13} />
-                                <span>Assign User</span>
+                                <span>Assign New User</span>
                               </button>
                             </div>
 
@@ -2145,12 +2165,13 @@ const CourseManagement = ({
                                   <tr>
                                     <th className="px-4 py-2.5 text-left">Name</th>
                                     <th className="px-4 py-2.5 text-left">Email</th>
-                                    <th className="px-4 py-2.5 text-left">Access</th>
+                                    <th className="px-4 py-2.5 text-center">Upload</th>
+                                    <th className="px-4 py-2.5 text-center">Download</th>
                                     <th className="px-4 py-2.5 text-right">Action</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 bg-white">
-                                  {courseUsers.map((userAccess) => (
+                                  {visibleCourseUsers.map((userAccess) => (
                                     <tr key={userAccess.id} className="hover:bg-slate-50/70 transition-colors">
                                       {/* Name Column */}
                                       <td className="px-4 py-3 whitespace-nowrap">
@@ -2170,29 +2191,36 @@ const CourseManagement = ({
                                         {userAccess.userEmail}
                                       </td>
 
-                                      {/* Access Column (2 possible values + optional (default) suffix) */}
-                                      <td className="px-4 py-3 whitespace-nowrap">
+                                      {/* Upload Column */}
+                                      <td className="px-4 py-3 whitespace-nowrap text-center">
                                         {userAccess.access === 'Edit and Download' ? (
-                                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs">
-                                            <Edit2 size={11} className="text-emerald-600 shrink-0" />
-                                            <span>Edit and Download</span>
+                                          <div className="inline-flex items-center gap-1.5 text-emerald-600">
+                                            <span className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center">
+                                              <Check size={13} className="text-emerald-700 stroke-[3]" />
+                                            </span>
                                             {userAccess.isDefault && (
                                               <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100/90 px-1.5 py-0.2 rounded" title={userAccess.defaultReason || 'Default role permission'}>
                                                 (default)
                                               </span>
                                             )}
-                                          </span>
+                                          </div>
                                         ) : (
-                                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200/80 shadow-2xs">
-                                            <Download size={11} className="text-sky-600 shrink-0" />
-                                            <span>Download</span>
-                                            {userAccess.isDefault && (
-                                              <span className="text-[10px] font-medium text-sky-700 bg-sky-100/90 px-1.5 py-0.2 rounded" title={userAccess.defaultReason || 'Default role permission'}>
-                                                (default)
-                                              </span>
-                                            )}
-                                          </span>
+                                          <span className="text-gray-300 font-semibold">—</span>
                                         )}
+                                      </td>
+
+                                      {/* Download Column */}
+                                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                                        <div className="inline-flex items-center gap-1.5 text-emerald-600">
+                                          <span className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center">
+                                            <Check size={13} className="text-emerald-700 stroke-[3]" />
+                                          </span>
+                                          {userAccess.isDefault && (
+                                            <span className="text-[10px] font-medium text-sky-700 bg-sky-100/90 px-1.5 py-0.2 rounded" title={userAccess.defaultReason || 'Default role permission'}>
+                                              (default)
+                                            </span>
+                                          )}
+                                        </div>
                                       </td>
 
                                       {/* Action Column */}
@@ -2210,10 +2238,10 @@ const CourseManagement = ({
                                     </tr>
                                   ))}
 
-                                  {courseUsers.length === 0 && (
+                                  {visibleCourseUsers.length === 0 && (
                                     <tr>
-                                      <td colSpan={4} className="text-center py-6 text-gray-400 italic">
-                                        No users currently assigned to this course. Click "Assign User" to add access.
+                                      <td colSpan={5} className="text-center py-6 text-gray-400 italic">
+                                        No instructors or staff currently assigned to this course. Click "Assign New User" to add access.
                                       </td>
                                     </tr>
                                   )}
@@ -2253,7 +2281,7 @@ const CourseManagement = ({
               className="flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors cursor-pointer"
               title="Remove user access from this course"
             >
-              <Trash2 size={15} className="mr-1.5" /> Delete Access
+              <Trash2 size={15} className="mr-1.5" /> Remove Access
             </button>
             <div className="flex items-center gap-2">
               <button
@@ -2296,7 +2324,7 @@ const CourseManagement = ({
               </div>
 
               <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs text-gray-600">
-                <span>Target Course:</span>
+                <span>Course:</span>
                 <span className="font-bold text-indigo-700">
                   {editingAccessData.courseId} - {editingAccessData.courseName}
                 </span>
@@ -2306,12 +2334,12 @@ const CourseManagement = ({
             {/* Editable Access Level Radio Options */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                Permission / Access Level
+                Select permission for this course portfolio
               </label>
               <div className="space-y-2.5">
-                {/* Edit and Download */}
+                {/* Upload and Download */}
                 <label
-                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     editingAccessLevel === 'Edit and Download'
                       ? 'border-emerald-500 bg-emerald-50/50 shadow-2xs'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
@@ -2323,22 +2351,14 @@ const CourseManagement = ({
                     value="Edit and Download"
                     checked={editingAccessLevel === 'Edit and Download'}
                     onChange={() => setEditingAccessLevel('Edit and Download')}
-                    className="h-4 w-4 mt-0.5 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                    className="h-4 w-4 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
                   />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-900">Edit and Download</span>
-                      <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">Full Access</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Allows full access to edit syllabus, upload files, update course data, and download final PDFs.
-                    </p>
-                  </div>
+                  <span className="text-sm font-bold text-gray-900">Upload and Download</span>
                 </label>
 
-                {/* Download */}
+                {/* Download only */}
                 <label
-                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     editingAccessLevel === 'Download'
                       ? 'border-blue-500 bg-blue-50/50 shadow-2xs'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
@@ -2350,42 +2370,11 @@ const CourseManagement = ({
                     value="Download"
                     checked={editingAccessLevel === 'Download'}
                     onChange={() => setEditingAccessLevel('Download')}
-                    className="h-4 w-4 mt-0.5 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
                   />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-900">Download</span>
-                      <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded">View Only</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Allows read-only access to view course reports and download generated syllabus and cover documents.
-                    </p>
-                  </div>
+                  <span className="text-sm font-bold text-gray-900">Download only</span>
                 </label>
               </div>
-            </div>
-
-            {/* Default Status Suffix Option */}
-            <div className="pt-2 border-t border-gray-100">
-              <label className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
-                <div className="flex items-center gap-2.5">
-                  <input
-                    type="checkbox"
-                    checked={editingIsDefault}
-                    onChange={(e) => setEditingIsDefault(e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                  />
-                  <div>
-                    <span className="font-medium text-gray-800 text-xs">Set as System Default Permission</span>
-                    <p className="text-[11px] text-gray-500">Displays the <span className="font-semibold text-gray-700">(default)</span> tag in table</p>
-                  </div>
-                </div>
-                {editingIsDefault && (
-                  <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                    (default)
-                  </span>
-                )}
-              </label>
             </div>
           </div>
         )}
@@ -2395,7 +2384,7 @@ const CourseManagement = ({
       <Modal
         isOpen={!!assigningCourse}
         onClose={() => setAssigningCourse(null)}
-        title={`Assign User to Course - ${assigningCourse?.id}`}
+        title="Assign New User"
         maxWidth="max-w-lg"
         footer={
           <>
@@ -2412,7 +2401,7 @@ const CourseManagement = ({
               disabled={!assignUserId}
               className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer disabled:opacity-50"
             >
-              Assign User
+              Assign
             </button>
           </>
         }
@@ -2421,7 +2410,7 @@ const CourseManagement = ({
           <div className="space-y-4">
             {/* Target Course Banner */}
             <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 text-xs">
-              <span className="text-gray-500 block mb-0.5">Target Course:</span>
+              <span className="text-gray-500 block mb-0.5">Course:</span>
               <span className="font-bold text-indigo-900 text-sm">
                 {assigningCourse.id}: {assigningCourse.name}
               </span>
@@ -2430,7 +2419,7 @@ const CourseManagement = ({
             {/* User Select Dropdown */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Select User
+                Select Instructor or Staff Member
               </label>
               <select
                 value={assignUserId}
@@ -2438,25 +2427,27 @@ const CourseManagement = ({
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white cursor-pointer"
               >
                 <option value="">Select a user to assign...</option>
-                {(users || MOCK_USERS).map((u) => {
-                  const alreadyAssigned = (courseAssignments[assigningCourse.id] || []).some(a => a.userId === u.id);
-                  return (
-                    <option key={u.id} value={u.id} disabled={alreadyAssigned}>
-                      {u.name} ({u.email}) - {u.role.replace('_', ' ')} {alreadyAssigned ? '— [Already Assigned]' : ''}
-                    </option>
-                  );
-                })}
+                {(users || MOCK_USERS)
+                  .filter((u) => u.role !== 'admin' && u.role !== 'super_admin')
+                  .map((u) => {
+                    const alreadyAssigned = (courseAssignments[assigningCourse.id] || []).some(a => a.userId === u.id);
+                    return (
+                      <option key={u.id} value={u.id} disabled={alreadyAssigned}>
+                        {u.name} ({u.email}) - {u.role.replace('_', ' ')} {alreadyAssigned ? '— [Already Assigned]' : ''}
+                      </option>
+                    );
+                  })}
               </select>
             </div>
 
             {/* Access Level Selector */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                Permission Level
+                Select permission for this course portfolio
               </label>
               <div className="space-y-2.5">
                 <label
-                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     assignAccessLevel === 'Edit and Download'
                       ? 'border-emerald-500 bg-emerald-50/50 shadow-2xs'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
@@ -2468,21 +2459,13 @@ const CourseManagement = ({
                     value="Edit and Download"
                     checked={assignAccessLevel === 'Edit and Download'}
                     onChange={() => setAssignAccessLevel('Edit and Download')}
-                    className="h-4 w-4 mt-0.5 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                    className="h-4 w-4 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
                   />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-900">Edit and Download</span>
-                      <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">Full Access</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Full edit and upload permission for syllabus files and course information.
-                    </p>
-                  </div>
+                  <span className="text-sm font-bold text-gray-900">Upload and Download</span>
                 </label>
 
                 <label
-                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     assignAccessLevel === 'Download'
                       ? 'border-blue-500 bg-blue-50/50 shadow-2xs'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
@@ -2494,37 +2477,11 @@ const CourseManagement = ({
                     value="Download"
                     checked={assignAccessLevel === 'Download'}
                     onChange={() => setAssignAccessLevel('Download')}
-                    className="h-4 w-4 mt-0.5 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
                   />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-900">Download</span>
-                      <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded">View Only</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Download and review permissions only.
-                    </p>
-                  </div>
+                  <span className="text-sm font-bold text-gray-900">Download only</span>
                 </label>
               </div>
-            </div>
-
-            {/* Default Suffix Toggle */}
-            <div className="pt-2 border-t border-gray-100">
-              <label className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm">
-                <div className="flex items-center gap-2.5">
-                  <input
-                    type="checkbox"
-                    checked={assignIsDefault}
-                    onChange={(e) => setAssignIsDefault(e.target.checked)}
-                    className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                  />
-                  <div>
-                    <span className="font-medium text-gray-800 text-xs">Set as System Default Permission</span>
-                    <p className="text-[11px] text-gray-500">Append <span className="font-semibold text-gray-700">(default)</span> to access badge</p>
-                  </div>
-                </div>
-              </label>
             </div>
           </div>
         )}
@@ -3931,12 +3888,15 @@ const CourseList = ({
 
   return (
     <div className="p-6 space-y-5 w-full">
-      {/* Top Header: Title + Dropdown Filters (Year, Dept, Curr) */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        {/* Left: Title + Year + Department + Curriculum Dropdown Selects */}
+      {/* Top Header: Title on Row 1, Filters on Row 2 under Title */}
+      <div className="space-y-4">
+        {/* Row 1: Title */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Course Portfolios</h1>
+        </div>
+
+        {/* Row 2: Filters under page title */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="text-2xl font-bold text-gray-900 mr-1">Courses</h1>
-          
           {/* Year Dropdown */}
           <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-2xs px-3 py-1.5">
             <span className="text-xs font-semibold text-gray-500 mr-2 uppercase tracking-wide">Year:</span>
@@ -4098,7 +4058,7 @@ const CourseList = ({
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-1">
-                    Updated Time
+                    Latest Update
                     {sortField === 'time' ? (
                       sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
                     ) : (
@@ -4126,21 +4086,7 @@ const CourseList = ({
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      <div className="flex items-center gap-2">
-                        <span>{course.name}</span>
-                        {(() => {
-                          const parentCurr = curriculums.find(c => c.name === course.curriculum);
-                          if (parentCurr?.coverFile) {
-                            return (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.5 rounded" title={`Shared Cover: ${parentCurr.coverFile} (${parentCurr.name})`}>
-                                <FileText size={11} className="text-indigo-500" />
-                                <span>{parentCurr.code} Cover</span>
-                              </span>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
+                      <span>{course.name}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
@@ -4496,7 +4442,7 @@ export default function App() {
             onClick={() => setActiveTab('courses')}
             className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'courses' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
           >
-            <BookOpen size={18} className="mr-3" /> Courses
+            <BookOpen size={18} className="mr-3" /> Course Portfolios
           </button>
           
           {['super_admin', 'admin'].includes(currentUser.role) && (
@@ -4505,7 +4451,7 @@ export default function App() {
                 onClick={() => setActiveTab('course_management')}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'course_management' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                <BookMarked size={18} className="mr-3" /> Course Management
+                <BookMarked size={18} className="mr-3" /> Curriculum Management
               </button>
 
               <button
