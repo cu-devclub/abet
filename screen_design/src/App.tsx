@@ -836,9 +836,9 @@ const UserManagement = ({
         <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
         <button 
           onClick={() => openUserModal()} 
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm"
+          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm cursor-pointer"
         >
-          <Plus size={16} className="mr-2" /> Add User
+          <Plus size={16} className="mr-2" /> Add New User
         </button>
       </div>
 
@@ -848,7 +848,7 @@ const UserManagement = ({
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Affiliation</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
             </tr>
@@ -868,10 +868,12 @@ const UserManagement = ({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button 
+                    type="button"
                     onClick={() => openUserModal(user)}
-                    className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+                    className="inline-flex items-center justify-center p-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
+                    title="Edit User"
                   >
-                    Edit User
+                    <Edit2 size={13} />
                   </button>
                 </td>
               </tr>
@@ -887,8 +889,12 @@ const UserManagement = ({
         footer={
           <>
             {!isNewUser && (
-              <button onClick={handleDeleteUser} className="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg mr-auto transition-colors">
-                Delete User
+              <button 
+                type="button"
+                onClick={handleDeleteUser} 
+                className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg mr-auto transition-colors cursor-pointer"
+              >
+                <Trash2 size={15} className="mr-1.5" /> Delete User
               </button>
             )}
             <button onClick={() => setSelectedUser(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
@@ -906,7 +912,6 @@ const UserManagement = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-sm font-medium text-gray-700">Name</label>
-                  <span className="text-[11px] text-gray-400">Synced via Google SSO</span>
                 </div>
                 <input 
                   type="text" 
@@ -917,8 +922,7 @@ const UserManagement = ({
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   {isNewUser 
-                    ? "Name is fetched from backend/Google after entering email." 
-                    : "Automatically managed & synced by backend via Google login."}
+                    ? "Name is fetched from backend/Google after entering email." : ""}
                 </p>
               </div>
               <div>
@@ -931,12 +935,13 @@ const UserManagement = ({
                   placeholder="e.g. user@company.com"
                   className={`w-full border rounded-lg px-3 py-2 text-sm ${!isNewUser ? 'bg-gray-100 border-gray-300 text-gray-600 cursor-not-allowed' : 'bg-white border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'}`} 
                 />
-                {!isNewUser && (
-                  <p className="text-xs text-gray-400 mt-1">Email is linked to Google account.</p>
-                )}
               </div>
             </div>
-
+            <div>
+                {!isNewUser && (
+                  <p className="text-xs text-gray-400 mt-1">Both Name and Email are automatically synced with the Google account.</p>
+                )}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
@@ -1049,7 +1054,9 @@ const DepartmentManagement = ({
     setSelectedDept(null);
   };
 
-  const handleDeleteDept = (dept: Department) => {
+  const handleDeleteDept = () => {
+    if (!selectedDept) return;
+    const dept = selectedDept;
     const hasCurriculums = curriculums.some(c => c.departmentId === dept.id);
     const hasUsers = users.some(u => u.department === dept.name);
 
@@ -1060,6 +1067,7 @@ const DepartmentManagement = ({
 
     if (confirm(`Are you sure you want to delete the department "${dept.name}"?`)) {
       setDepartments(departments.filter(d => d.id !== dept.id));
+      setSelectedDept(null);
     }
   };
 
@@ -1069,9 +1077,9 @@ const DepartmentManagement = ({
         <h1 className="text-2xl font-bold text-gray-900">Department Management</h1>
         <button 
           onClick={() => openDeptModal()} 
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm"
+          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm cursor-pointer"
         >
-          <Plus size={16} className="mr-2" /> Add Department
+          <Plus size={16} className="mr-2" /> Add New Department
         </button>
       </div>
 
@@ -1079,10 +1087,10 @@ const DepartmentManagement = ({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department Code</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Curriculums</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -1097,18 +1105,14 @@ const DepartmentManagement = ({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {deptCurriculums.length} {deptCurriculums.length === 1 ? 'Curriculum' : 'Curriculums'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button 
+                      type="button"
                       onClick={() => openDeptModal(dept)}
-                      className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+                      className="inline-flex items-center justify-center p-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
+                      title="Edit Department"
                     >
-                      Edit
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteDept(dept)}
-                      className="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      Delete
+                      <Edit2 size={13} />
                     </button>
                   </td>
                 </tr>
@@ -1129,10 +1133,27 @@ const DepartmentManagement = ({
         title={isNewDept ? "Add New Department" : "Edit Department"}
         footer={
           <>
-            <button onClick={() => setSelectedDept(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            {!isNewDept && (
+              <button 
+                type="button"
+                onClick={handleDeleteDept} 
+                className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg mr-auto transition-colors cursor-pointer"
+              >
+                <Trash2 size={15} className="mr-1.5" /> Delete Department
+              </button>
+            )}
+            <button 
+              type="button"
+              onClick={() => setSelectedDept(null)} 
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+            >
               Cancel
             </button>
-            <button onClick={handleSaveDept} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+            <button 
+              type="button"
+              onClick={handleSaveDept} 
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer"
+            >
               {isNewDept ? "Create Department" : "Save Changes"}
             </button>
           </>
@@ -1233,7 +1254,9 @@ const CurriculumManagement = ({
     setSelectedCurr(null);
   };
 
-  const handleDeleteCurr = (curr: Curriculum) => {
+  const handleDeleteCurr = () => {
+    if (!selectedCurr) return;
+    const curr = selectedCurr;
     const hasUsers = users.some(u => u.curriculum === curr.name);
 
     if (hasUsers) {
@@ -1243,6 +1266,7 @@ const CurriculumManagement = ({
 
     if (confirm(`Are you sure you want to delete the curriculum "${curr.name}"?`)) {
       setCurriculums(curriculums.filter(c => c.id !== curr.id));
+      setSelectedCurr(null);
     }
   };
 
@@ -1252,11 +1276,11 @@ const CurriculumManagement = ({
         <h1 className="text-2xl font-bold text-gray-900">Curriculum Management</h1>
         <button 
           onClick={() => openCurrModal()} 
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm"
+          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm cursor-pointer"
           disabled={departments.length === 0}
           title={departments.length === 0 ? "Create a department first" : ""}
         >
-          <Plus size={16} className="mr-2" /> Add Curriculum
+          <Plus size={16} className="mr-2" /> Add New Curriculum
         </button>
       </div>
 
@@ -1264,10 +1288,10 @@ const CurriculumManagement = ({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Curriculum Code</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Curriculum Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -1282,18 +1306,14 @@ const CurriculumManagement = ({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {dept ? dept.name : <span className="text-red-500 italic">No Department</span>}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button 
+                      type="button"
                       onClick={() => openCurrModal(curr)}
-                      className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+                      className="inline-flex items-center justify-center p-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
+                      title="Edit Curriculum"
                     >
-                      Edit
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteCurr(curr)}
-                      className="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      Delete
+                      <Edit2 size={13} />
                     </button>
                   </td>
                 </tr>
@@ -1314,10 +1334,27 @@ const CurriculumManagement = ({
         title={isNewCurr ? "Add New Curriculum" : "Edit Curriculum"}
         footer={
           <>
-            <button onClick={() => setSelectedCurr(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            {!isNewCurr && (
+              <button 
+                type="button"
+                onClick={handleDeleteCurr} 
+                className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg mr-auto transition-colors cursor-pointer"
+              >
+                <Trash2 size={15} className="mr-1.5" /> Delete Curriculum
+              </button>
+            )}
+            <button 
+              type="button"
+              onClick={() => setSelectedCurr(null)} 
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+            >
               Cancel
             </button>
-            <button onClick={handleSaveCurr} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+            <button 
+              type="button"
+              onClick={handleSaveCurr} 
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer"
+            >
               {isNewCurr ? "Create Curriculum" : "Save Changes"}
             </button>
           </>
@@ -1432,7 +1469,7 @@ const CourseManagement = ({
   const [expandedCourseIds, setExpandedCourseIds] = useState<string[]>([]);
 
   // Edit Access Modal State
-  const [editingAccessData, setEditingAccessData] = useState<{ courseId: string; courseName: string; userAccess: CourseUserAccess } | null>(null);
+  const [editingAccessData, setEditingAccessData] = useState<{ courseId: string; courseName: string; department?: string; curriculum?: string; year?: string; userAccess: CourseUserAccess } | null>(null);
   const [editingAccessLevel, setEditingAccessLevel] = useState<'Edit and Download' | 'Download'>('Edit and Download');
   const [editingIsDefault, setEditingIsDefault] = useState(false);
 
@@ -1623,7 +1660,7 @@ const CourseManagement = ({
           name: editingNameInput.trim(),
           department: editingDepartment,
           curriculum: editingCurriculum,
-          year: editingYear,
+          year: selectedYear || editingYear,
           semester: editingSemester,
         }]);
         // Automatically assign creator/instructor with default access
@@ -1688,7 +1725,14 @@ const CourseManagement = ({
 
   // --- User Access Handlers ---
   const handleOpenEditAccess = (course: any, userAccess: CourseUserAccess) => {
-    setEditingAccessData({ courseId: course.id, courseName: course.name, userAccess });
+    setEditingAccessData({
+      courseId: course.id,
+      courseName: course.name,
+      department: course.department,
+      curriculum: course.curriculum,
+      year: course.year,
+      userAccess
+    });
     setEditingAccessLevel(userAccess.access);
     setEditingIsDefault(!!userAccess.isDefault);
   };
@@ -1798,28 +1842,13 @@ const CourseManagement = ({
             )}
             
             <button onClick={handleOpenAdd} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-2xs whitespace-nowrap cursor-pointer">
-              <Plus size={16} className="mr-2" /> Add Course
+              <Plus size={16} className="mr-2" /> Add New Course
             </button>
           </div>
         </div>
 
         {/* Row 2: Filters under page title */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Year Dropdown */}
-          <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-2xs px-3 py-1.5">
-            <span className="text-xs font-semibold text-gray-500 mr-2 uppercase tracking-wide">Year:</span>
-            <select 
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-transparent text-sm font-bold text-indigo-700 outline-none cursor-pointer"
-            >
-              <option value="2025">2025</option>
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
-              <option value="2022">2022</option>
-            </select>
-          </div>
-
           {/* Department Searchable Dropdown */}
           <SearchableSelect
             label="Department"
@@ -1846,6 +1875,21 @@ const CourseManagement = ({
             allLabel="All Curriculums"
             icon={GraduationCap}
           />
+
+          {/* Year Dropdown */}
+          <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-2xs px-3 py-1.5">
+            <span className="text-xs font-semibold text-gray-500 mr-2 uppercase tracking-wide">Year:</span>
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-transparent text-sm font-bold text-indigo-700 outline-none cursor-pointer"
+            >
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+              <option value="2023">2023</option>
+              <option value="2022">2022</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -1959,32 +2003,6 @@ const CourseManagement = ({
                   onSelectAllSemesters={handleSelectAllSemesters}
                   onClearSemesters={handleClearSemesters}
                 />
-                <th 
-                  onClick={() => handleSort('department')}
-                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-1">
-                    Department
-                    {sortField === 'department' ? (
-                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
-                    ) : (
-                      <ArrowUpDown size={12} className="text-gray-400" />
-                    )}
-                  </div>
-                </th>
-                <th 
-                  onClick={() => handleSort('curriculum')}
-                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-1">
-                    Curriculum
-                    {sortField === 'curriculum' ? (
-                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
-                    ) : (
-                      <ArrowUpDown size={12} className="text-gray-400" />
-                    )}
-                  </div>
-                </th>
                 <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -2093,30 +2111,15 @@ const CourseManagement = ({
                         </span>
                       </td>
 
-                      {/* Department */}
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="max-w-[160px] truncate" title={course.department || ''}>
-                          {course.department || '-'}
-                        </div>
-                      </td>
-
-                      {/* Curriculum */}
-                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="max-w-[140px] truncate" title={course.curriculum || ''}>
-                          {course.curriculum || '-'}
-                        </div>
-                      </td>
-
                       {/* Course Actions */}
                       <td className="px-5 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                         <button 
                           type="button"
                           onClick={() => handleEdit(course)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
+                          className="inline-flex items-center justify-center p-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
                           title="Edit Course"
                         >
-                          <Edit2 size={11} />
-                          <span>Edit</span>
+                          <Edit2 size={13} />
                         </button>
                       </td>
                     </tr>
@@ -2124,7 +2127,7 @@ const CourseManagement = ({
                     {/* --- Expanded Sub-Table: Assigned Users with Course Access --- */}
                     {isExpanded && (
                       <tr className="bg-slate-50/70 border-b border-gray-200">
-                        <td colSpan={8} className="p-0">
+                        <td colSpan={6} className="p-0">
                           <div className="py-3.5 px-6 sm:px-8 bg-gradient-to-b from-slate-50 via-slate-100/50 to-slate-50 border-y border-slate-200/80 shadow-inner">
                             {/* Sub-table Header Bar */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
@@ -2228,11 +2231,10 @@ const CourseManagement = ({
                                         <button
                                           type="button"
                                           onClick={() => handleOpenEditAccess(course, userAccess)}
-                                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
+                                          className="inline-flex items-center justify-center p-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
                                           title="Edit Access"
                                         >
-                                          <Edit2 size={11} />
-                                          <span>Edit</span>
+                                          <Edit2 size={13} />
                                         </button>
                                       </td>
                                     </tr>
@@ -2257,7 +2259,7 @@ const CourseManagement = ({
               })}
               {sortedCourses.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-gray-500 italic">
+                  <td colSpan={6} className="text-center py-8 text-gray-500 italic">
                     No courses found matching the selected filters for academic year {selectedYear}.
                   </td>
                 </tr>
@@ -2323,11 +2325,33 @@ const CourseManagement = ({
                 </span>
               </div>
 
-              <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs text-gray-600">
-                <span>Course:</span>
-                <span className="font-bold text-indigo-700">
-                  {editingAccessData.courseId} - {editingAccessData.courseName}
-                </span>
+              <div className="pt-2 border-t border-slate-200/80 space-y-1.5 text-xs">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-gray-500">Course: </span>
+                    <span className="font-bold text-indigo-700">
+                      {editingAccessData.courseId}: {editingAccessData.courseName}
+                    </span>
+                  </div>
+                  <div className="shrink-0 text-right whitespace-nowrap">
+                    <span className="text-gray-500">Year: </span>
+                    <span className="font-bold text-indigo-700">
+                      {editingAccessData.year || selectedYear}
+                    </span>
+                  </div>
+                </div>
+                {editingAccessData.department && (
+                  <div>
+                    <span className="text-gray-500">Department: </span>
+                    <span className="font-semibold text-gray-800">{editingAccessData.department}</span>
+                  </div>
+                )}
+                {editingAccessData.curriculum && (
+                  <div>
+                    <span className="text-gray-500">Curriculum: </span>
+                    <span className="font-semibold text-gray-800">{editingAccessData.curriculum}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2409,11 +2433,35 @@ const CourseManagement = ({
         {assigningCourse && (
           <div className="space-y-4">
             {/* Target Course Banner */}
-            <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 text-xs">
-              <span className="text-gray-500 block mb-0.5">Course:</span>
-              <span className="font-bold text-indigo-900 text-sm">
-                {assigningCourse.id}: {assigningCourse.name}
-              </span>
+            <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 space-y-1.5 text-xs">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className="text-gray-500">Course: </span>
+                  <span className="font-bold text-indigo-900 text-sm">
+                    {assigningCourse.id}: {assigningCourse.name}
+                  </span>
+                </div>
+                <div className="shrink-0 text-right whitespace-nowrap">
+                  <span className="text-gray-500">Year: </span>
+                  <span className="font-bold text-indigo-900 text-sm">
+                    {assigningCourse.year || selectedYear}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-gray-500">Department: </span>
+                <span className="font-semibold text-gray-800">
+                  {assigningCourse.department || '-'}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-gray-500">Curriculum: </span>
+                <span className="font-semibold text-gray-800">
+                  {assigningCourse.curriculum || '-'}
+                </span>
+              </div>
             </div>
 
             {/* User Select Dropdown */}
@@ -2491,7 +2539,7 @@ const CourseManagement = ({
       <Modal 
         isOpen={isAddModalOpen || !!editingCourse} 
         onClose={() => { setIsAddModalOpen(false); setEditingCourse(null); }} 
-        title={editingCourse ? "Edit Course" : "Create New Course"}
+        title={editingCourse ? "Edit Course" : "Add New Course"}
         footer={
           editingCourse ? (
             <div className="flex items-center justify-between w-full">
@@ -2540,7 +2588,7 @@ const CourseManagement = ({
                 onClick={handleSaveCourse} 
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
               >
-                Create Course
+                Add Course
               </button>
             </div>
           )
@@ -2576,7 +2624,7 @@ const CourseManagement = ({
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Upload Excel (Bulk)
+                Upload Excel
               </button>
             </div>
           )}
@@ -2608,17 +2656,30 @@ const CourseManagement = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
-                  <select 
-                    value={editingYear}
-                    onChange={(e) => setEditingYear(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                  >
-                    <option value="2025">2025</option>
-                    <option value="2024">2024</option>
-                    <option value="2023">2023</option>
-                    <option value="2022">2022</option>
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Academic Year</label>
+                  </div>
+                  {!editingCourse ? (
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={selectedYear}
+                      placeholder="No year selected"
+                      className="w-full border border-gray-200 bg-gray-100 text-gray-700 rounded-lg px-3 py-2 text-sm cursor-not-allowed select-none focus:outline-none"
+                    />
+                  ) : (
+                    <select 
+                      value={editingYear}
+                      onChange={(e) => setEditingYear(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                    >
+                      <option value="2025">2025</option>
+                      <option value="2024">2024</option>
+                      <option value="2023">2023</option>
+                      <option value="2022">2022</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Semester</label>
@@ -2638,9 +2699,6 @@ const CourseManagement = ({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-sm font-medium text-gray-700">Department</label>
-                    {!editingCourse && (
-                      <span className="text-[11px] text-gray-400 font-normal">From filter</span>
-                    )}
                   </div>
                   {!editingCourse ? (
                     <input
@@ -2670,9 +2728,6 @@ const CourseManagement = ({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-sm font-medium text-gray-700">Curriculum</label>
-                    {!editingCourse && (
-                      <span className="text-[11px] text-gray-400 font-normal">From filter</span>
-                    )}
                   </div>
                   {!editingCourse ? (
                     <input
@@ -3897,21 +3952,6 @@ const CourseList = ({
 
         {/* Row 2: Filters under page title */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Year Dropdown */}
-          <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-2xs px-3 py-1.5">
-            <span className="text-xs font-semibold text-gray-500 mr-2 uppercase tracking-wide">Year:</span>
-            <select 
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-transparent text-sm font-bold text-indigo-700 outline-none cursor-pointer"
-            >
-              <option value="2025">2025</option>
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
-              <option value="2022">2022</option>
-            </select>
-          </div>
-
           {/* Department Searchable Dropdown */}
           <SearchableSelect
             label="Department"
@@ -3938,6 +3978,21 @@ const CourseList = ({
             allLabel="All Curriculums"
             icon={GraduationCap}
           />
+
+          {/* Year Dropdown */}
+          <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-2xs px-3 py-1.5">
+            <span className="text-xs font-semibold text-gray-500 mr-2 uppercase tracking-wide">Year:</span>
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-transparent text-sm font-bold text-indigo-700 outline-none cursor-pointer"
+            >
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+              <option value="2023">2023</option>
+              <option value="2022">2022</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -4340,7 +4395,7 @@ const CourseList = ({
       <Modal 
         isOpen={!!uploadTargetCourse} 
         onClose={() => setUploadTargetCourse(null)} 
-        title={`Upload Files - ${uploadTargetCourse?.id}`}
+        title="Upload Course Portfolio Folder"
         footer={
           <>
             <button onClick={() => setUploadTargetCourse(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
@@ -4352,14 +4407,41 @@ const CourseList = ({
           </>
         }
       >
-        <div className="space-y-5">
-          <div className="bg-indigo-50 text-indigo-800 p-3 rounded-lg text-sm mb-4 border border-indigo-100 flex items-start">
-             <AlertCircle size={16} className="mt-0.5 mr-2 shrink-0" />
-             <p>Uploading files for <span className="font-semibold">{uploadTargetCourse?.name}</span>, Academic Year <span className="font-semibold">{selectedYear}</span>.</p>
+        <div className="space-y-4">
+          {/* Target Course Banner */}
+          <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 space-y-1.5 text-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <span className="text-gray-500">Course: </span>
+                <span className="font-bold text-indigo-900 text-sm">
+                  {uploadTargetCourse?.id}: {uploadTargetCourse?.name}
+                </span>
+              </div>
+              <div className="shrink-0 text-right whitespace-nowrap">
+                <span className="text-gray-500">Year: </span>
+                <span className="font-bold text-indigo-900 text-sm">
+                  {uploadTargetCourse?.year || selectedYear}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-gray-500">Department: </span>
+              <span className="font-semibold text-gray-800">
+                {uploadTargetCourse?.department || '-'}
+              </span>
+            </div>
+
+            <div>
+              <span className="text-gray-500">Curriculum: </span>
+              <span className="font-semibold text-gray-800">
+                {uploadTargetCourse?.curriculum || '-'}
+              </span>
+            </div>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Upload Folder or Files</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Upload Folder</label>
             <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-xl bg-gray-50 hover:bg-indigo-50 hover:border-indigo-300 transition-colors cursor-pointer group">
               <div className="space-y-1 text-center">
                 <UploadCloud className="mx-auto h-12 w-12 text-gray-400 group-hover:text-indigo-500 transition-colors" />
@@ -4367,9 +4449,9 @@ const CourseList = ({
                   <span className="relative rounded-md font-medium text-indigo-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                     <span>Drag and drop</span>
                   </span>
-                  <p className="pl-1">your files here</p>
+                  <p className="pl-1">your folder here</p>
                 </div>
-                <p className="text-xs text-gray-500">Files will be processed into a summary PDF</p>
+                <p className="text-xs text-gray-500">Files will be processed into a Course Portfolio PDF</p>
               </div>
             </div>
           </div>
