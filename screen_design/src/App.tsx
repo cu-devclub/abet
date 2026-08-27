@@ -2882,9 +2882,13 @@ const CoverManagement = ({
   departments: Department[];
   courses: any[];
 }) => {
+  // Top Dropdown Filters: Department & Curriculum & Status
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedCurriculum, setSelectedCurriculum] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
+
+  // Search & Sort states
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [sortField, setSortField] = useState<string>('code');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
@@ -2916,35 +2920,41 @@ const CoverManagement = ({
     return courses.filter(c => c.curriculum === currName);
   };
 
-  const toggleDepartment = (deptId: string) => {
-    if (selectedDepartments.includes(deptId)) {
-      setSelectedDepartments(selectedDepartments.filter(d => d !== deptId));
-    } else {
-      setSelectedDepartments([...selectedDepartments, deptId]);
-    }
-  };
-
-  const toggleStatus = (status: string) => {
-    if (selectedStatuses.includes(status)) {
-      setSelectedStatuses(selectedStatuses.filter(s => s !== status));
-    } else {
-      setSelectedStatuses([...selectedStatuses, status]);
+  const handleDepartmentChange = (deptName: string) => {
+    setSelectedDepartment(deptName);
+    if (deptName && selectedCurriculum) {
+      const parentDept = departments.find(d => d.name === deptName);
+      const curr = curriculums.find(c => c.name === selectedCurriculum);
+      if (curr && parentDept && curr.departmentId !== parentDept.id) {
+        setSelectedCurriculum('');
+      }
     }
   };
 
   const clearAllFilters = () => {
-    setSelectedDepartments([]);
-    setSelectedStatuses([]);
+    setSelectedDepartment('');
+    setSelectedCurriculum('');
+    setSelectedStatus('');
     setSearchQuery('');
   };
 
-  const hasActiveFilters = selectedDepartments.length > 0 || selectedStatuses.length > 0 || searchQuery !== '';
+  const hasActiveFilters = Boolean(
+    selectedDepartment || selectedCurriculum || selectedStatus || searchQuery
+  );
 
   // Filtered & Sorted Curriculums
   const filteredCurriculums = curriculums.filter(curr => {
     const dept = departments.find(d => d.id === curr.departmentId);
     const deptName = dept ? dept.name.toLowerCase() : '';
     const query = searchQuery.toLowerCase();
+
+    const matchesDept = !selectedDepartment || dept?.name === selectedDepartment;
+    const matchesCurriculum = !selectedCurriculum || curr.name === selectedCurriculum;
+    const matchesStatus = (
+      !selectedStatus ||
+      (selectedStatus === 'has_cover' && !!curr.coverFile) ||
+      (selectedStatus === 'no_cover' && !curr.coverFile)
+    );
 
     const matchesSearch = (
       curr.name.toLowerCase().includes(query) ||
@@ -2953,15 +2963,7 @@ const CoverManagement = ({
       (curr.coverFile && curr.coverFile.toLowerCase().includes(query))
     );
 
-    const matchesDept = selectedDepartments.length === 0 || selectedDepartments.includes(curr.departmentId);
-
-    const matchesStatus = (
-      selectedStatuses.length === 0 ||
-      (selectedStatuses.includes('has_cover') && !!curr.coverFile) ||
-      (selectedStatuses.includes('no_cover') && !curr.coverFile)
-    );
-
-    return matchesSearch && matchesDept && matchesStatus;
+    return matchesDept && matchesCurriculum && matchesStatus && matchesSearch;
   });
 
   const sortedCurriculums = [...filteredCurriculums].sort((a, b) => {
@@ -3118,7 +3120,7 @@ const CoverManagement = ({
   const activeTargetCurr = curriculums.find(c => c.id === modalCurrId);
 
   return (
-    <div className="p-6 space-y-6 w-full">
+    <div className="p-6 space-y-5 w-full">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
@@ -3147,338 +3149,331 @@ const CoverManagement = ({
         </div>
       )}
 
-      {/* Top Header: Title + Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cover Management</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage standard course cover PDFs by curriculum. All courses under the same curriculum share the same cover.
-          </p>
+      {/* Top Header: Title + Actions on Row 1, Filters on Row 2 under Title */}
+      <div className="space-y-4">
+        {/* Row 1: Title + Action Buttons */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Cover Management</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Manage standard course cover PDFs by curriculum. All courses under the same curriculum share the same cover.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            {selectedWithCovers.length > 0 && (
+              <button 
+                onClick={() => setIsBulkDeleteOpen(true)} 
+                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm transition-colors shadow-2xs whitespace-nowrap cursor-pointer"
+              >
+                <Trash2 size={16} className="mr-2" /> Remove Covers ({selectedWithCovers.length})
+              </button>
+            )}
+
+            <button 
+              onClick={() => handleOpenUpload()} 
+              className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-2xs whitespace-nowrap cursor-pointer"
+            >
+              <Plus size={16} className="mr-2" /> Upload Cover PDF
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {selectedWithCovers.length > 0 && (
-            <button 
-              onClick={() => setIsBulkDeleteOpen(true)} 
-              className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm transition-colors shadow-sm whitespace-nowrap"
-            >
-              <Trash2 size={16} className="mr-2" /> Remove Covers ({selectedWithCovers.length})
-            </button>
-          )}
+        {/* Row 2: Filters under page title */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Department Searchable Dropdown */}
+          <SearchableSelect
+            label="Department"
+            value={selectedDepartment}
+            onChange={handleDepartmentChange}
+            options={departments.map(d => ({ value: d.name, label: d.name, subtext: d.code }))}
+            allLabel="All Departments"
+            icon={Building2}
+          />
 
-          <button 
-            onClick={() => handleOpenUpload()} 
-            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm whitespace-nowrap"
-          >
-            <Plus size={16} className="mr-2" /> Upload Cover PDF
-          </button>
+          {/* Curriculum Searchable Dropdown */}
+          <SearchableSelect
+            label="Curriculum"
+            value={selectedCurriculum}
+            onChange={setSelectedCurriculum}
+            options={curriculums
+              .filter(c => {
+                if (!selectedDepartment) return true;
+                const parentDept = departments.find(d => d.name === selectedDepartment);
+                return parentDept && c.departmentId === parentDept.id;
+              })
+              .map(c => ({ value: c.name, label: c.name, subtext: c.code }))
+            }
+            allLabel="All Curriculums"
+            icon={GraduationCap}
+          />
+
+          {/* Cover Status Searchable Dropdown */}
+          <SearchableSelect
+            label="Cover Status"
+            value={selectedStatus}
+            onChange={setSelectedStatus}
+            options={[
+              { value: 'has_cover', label: 'Cover Uploaded' },
+              { value: 'no_cover', label: 'Missing Cover' },
+            ]}
+            allLabel="All Statuses"
+            icon={FileText}
+          />
         </div>
       </div>
 
-      {/* Main Layout: Table on Left (flex-1), Multi-Select Filter Panel on Right (w-72) */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* Left Area: Search Bar + Table */}
-        <div className="flex-1 w-full min-w-0 space-y-4">
-          {/* Search Bar + Results Status */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search curriculum code, name, department, cover..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
-              />
+      {/* Search Bar + Active Filters Status */}
+      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
             </div>
-            <div className="text-xs text-gray-500 px-2 whitespace-nowrap">
-              Showing <span className="font-semibold text-gray-900">{sortedCurriculums.length}</span> curriculum{sortedCurriculums.length === 1 ? '' : 's'}
-            </div>
+            <input
+              type="text"
+              placeholder="Search curriculum code, name, department, cover..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
+            />
           </div>
-
-          {/* Curriculums & Covers Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="w-12 px-6 py-3 text-left">
-                      <input
-                        type="checkbox"
-                        checked={selectedCurrIds.length === sortedCurriculums.length && sortedCurriculums.length > 0}
-                        onChange={handleSelectAllToggle}
-                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                      />
-                    </th>
-                    <th 
-                      onClick={() => handleSort('code')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Code
-                        {sortField === 'code' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('name')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Curriculum Name
-                        {sortField === 'name' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('department')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Department
-                        {sortField === 'department' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('cover')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Cover PDF
-                        {sortField === 'cover' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      onClick={() => handleSort('time')}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-1">
-                        Updated Time
-                        {sortField === 'time' ? (
-                          sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={12} className="text-gray-400" />
-                        )}
-                      </div>
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedCurriculums.map((curr) => {
-                    const dept = departments.find(d => d.id === curr.departmentId);
-                    const isSelected = selectedCurrIds.includes(curr.id);
-
-                    return (
-                      <tr 
-                        key={curr.id}
-                        onClick={() => handleToggleSelect(curr.id)}
-                        className={`hover:bg-gray-50 transition-colors cursor-pointer ${
-                          isSelected ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : ''
-                        }`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <input 
-                            type="checkbox" 
-                            checked={isSelected} 
-                            onChange={() => handleToggleSelect(curr.id)}
-                            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-700">
-                          <span className="bg-indigo-50 px-2.5 py-1 rounded-md text-xs tracking-wider uppercase">
-                            {curr.code}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {curr.name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {dept?.name || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {curr.coverFile ? (
-                            <div className="flex items-center gap-2">
-                              <div className="p-1 bg-rose-50 text-rose-600 rounded shrink-0">
-                                <FileText size={15} />
-                              </div>
-                              <span 
-                                className="font-medium text-gray-900 text-xs cursor-help"
-                                title={curr.coverFile}
-                              >
-                                {curr.coverFile.length > 15 
-                                  ? `${curr.coverFile.slice(0, 15)}...` 
-                                  : curr.coverFile}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 text-xs italic">No Cover</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {curr.coverUpdatedAt ? (
-                            <div className="flex items-center text-xs text-gray-500">
-                              <CheckCircle2 size={12} className="mr-1 text-gray-400" />
-                              {curr.coverUpdatedAt}
-                            </div>
-                          ) : (
-                            '-'
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" onClick={(e) => e.stopPropagation()}>
-                          {curr.coverFile && (
-                            <>
-                              <button 
-                                onClick={() => setPreviewCurr(curr)}
-                                className="text-gray-600 hover:text-indigo-900 bg-gray-50 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors inline-flex items-center"
-                                title="Preview Cover PDF"
-                              >
-                                <Eye size={14} />
-                              </button>
-                              <button 
-                                onClick={() => showToast(`Downloading ${curr.coverFile}...`)}
-                                className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
-                                title="Download PDF"
-                              >
-                                <Download size={14} />
-                              </button>
-                            </>
-                          )}
-                          <button 
-                            onClick={() => handleOpenUpload(curr)}
-                            className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
-                            title={curr.coverFile ? "Replace Cover PDF" : "Upload Cover PDF"}
-                          >
-                            <UploadCloud size={14} />
-                          </button>
-                          {curr.coverFile && (
-                            <button 
-                              onClick={() => setDeleteConfirmCurr(curr)}
-                              className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors inline-flex items-center"
-                              title="Remove Cover"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {sortedCurriculums.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="text-center py-8 text-gray-500 italic">
-                        No curriculums found matching your search and filter criteria.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div className="text-xs text-gray-500 px-2 whitespace-nowrap">
+            Showing <span className="font-semibold text-gray-900">{sortedCurriculums.length}</span> curriculum{sortedCurriculums.length === 1 ? '' : 's'}
           </div>
         </div>
 
-        {/* Right Area: Multi-Select Filter Panel Sidebar */}
-        <div className="w-full lg:w-72 shrink-0 bg-white rounded-xl shadow-sm border border-gray-200 p-5 space-y-6 sticky top-6">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-            <div className="flex items-center gap-2 text-gray-900 font-semibold text-sm">
-              <Filter size={16} className="text-indigo-600" />
-              <span>Filters</span>
-            </div>
-            {hasActiveFilters && (
-              <button 
-                onClick={clearAllFilters}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
-              >
-                <RotateCcw size={12} /> Clear all
-              </button>
+        {/* Active Filters Bar */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100 text-xs">
+            <span className="text-gray-500 font-medium">Active filters:</span>
+            {selectedDepartment && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Dept: {selectedDepartment}
+                <button onClick={() => setSelectedDepartment('')} className="hover:text-indigo-900 cursor-pointer"><X size={12} /></button>
+              </span>
             )}
+            {selectedCurriculum && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Curriculum: {selectedCurriculum}
+                <button onClick={() => setSelectedCurriculum('')} className="hover:text-indigo-900 cursor-pointer"><X size={12} /></button>
+              </span>
+            )}
+            {selectedStatus && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Status: {selectedStatus === 'has_cover' ? 'Cover Uploaded' : 'Missing Cover'}
+                <button onClick={() => setSelectedStatus('')} className="hover:text-indigo-900 cursor-pointer"><X size={12} /></button>
+              </span>
+            )}
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded-full font-medium">
+                Search: "{searchQuery}"
+                <button onClick={() => setSearchQuery('')} className="hover:text-gray-900 cursor-pointer"><X size={12} /></button>
+              </span>
+            )}
+            <button
+              onClick={clearAllFilters}
+              className="text-indigo-600 hover:text-indigo-800 font-semibold underline ml-1 cursor-pointer flex items-center gap-1"
+            >
+              <RotateCcw size={11} /> Clear all
+            </button>
           </div>
+        )}
+      </div>
 
-          {/* Department Filter */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Department
-            </label>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {departments.map((dept) => {
-                const isChecked = selectedDepartments.includes(dept.id);
-                const count = curriculums.filter(c => c.departmentId === dept.id).length;
+      {/* Curriculums & Covers Table (Full Width) */}
+      <div className="bg-white rounded-xl shadow-2xs border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="w-12 px-6 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={selectedCurrIds.length === sortedCurriculums.length && sortedCurriculums.length > 0}
+                    onChange={handleSelectAllToggle}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                  />
+                </th>
+                <th 
+                  onClick={() => handleSort('code')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Code
+                    {sortField === 'code' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('name')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Curriculum Name
+                    {sortField === 'name' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('department')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Department
+                    {sortField === 'department' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('cover')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Cover PDF
+                    {sortField === 'cover' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  onClick={() => handleSort('time')}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    Updated Time
+                    {sortField === 'time' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                    ) : (
+                      <ArrowUpDown size={12} className="text-gray-400" />
+                    )}
+                  </div>
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedCurriculums.map((curr) => {
+                const dept = departments.find(d => d.id === curr.departmentId);
+                const isSelected = selectedCurrIds.includes(curr.id);
+
                 return (
-                  <label 
-                    key={dept.id} 
-                    className="flex items-center justify-between p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
+                  <tr 
+                    key={curr.id}
+                    onClick={() => handleToggleSelect(curr.id)}
+                    className={`hover:bg-gray-50 transition-colors cursor-pointer ${
+                      isSelected ? 'bg-indigo-50/40 hover:bg-indigo-50/60' : ''
+                    }`}
                   >
-                    <div className="flex items-center min-w-0 pr-2">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleDepartment(dept.id)}
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected} 
+                        onChange={() => handleToggleSelect(curr.id)}
                         className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
                       />
-                      <span className="ml-2 text-gray-700 truncate" title={dept.name}>
-                        {dept.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-700">
+                      <span className="bg-indigo-50 px-2.5 py-1 rounded-md text-xs tracking-wider uppercase font-mono">
+                        {curr.code}
                       </span>
-                    </div>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full shrink-0">
-                      {count}
-                    </span>
-                  </label>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {curr.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {dept?.name || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {curr.coverFile ? (
+                        <div className="flex items-center gap-2">
+                          <div className="p-1 bg-rose-50 text-rose-600 rounded shrink-0">
+                            <FileText size={15} />
+                          </div>
+                          <span 
+                            className="font-medium text-gray-900 text-xs cursor-help"
+                            title={curr.coverFile}
+                          >
+                            {curr.coverFile.length > 15 
+                              ? `${curr.coverFile.slice(0, 15)}...` 
+                              : curr.coverFile}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs italic">No Cover</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {curr.coverUpdatedAt ? (
+                        <div className="flex items-center text-xs text-gray-500">
+                          <CheckCircle2 size={12} className="mr-1 text-gray-400" />
+                          {curr.coverUpdatedAt}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" onClick={(e) => e.stopPropagation()}>
+                      {curr.coverFile && (
+                        <>
+                          <button 
+                            onClick={() => setPreviewCurr(curr)}
+                            className="text-gray-600 hover:text-indigo-900 bg-gray-50 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
+                            title="Preview Cover PDF"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button 
+                            onClick={() => showToast(`Downloading ${curr.coverFile}...`)}
+                            className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
+                            title="Download PDF"
+                          >
+                            <Download size={14} />
+                          </button>
+                        </>
+                      )}
+                      <button 
+                        onClick={() => handleOpenUpload(curr)}
+                        className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
+                        title={curr.coverFile ? "Replace Cover PDF" : "Upload Cover PDF"}
+                      >
+                        <UploadCloud size={14} />
+                      </button>
+                      {curr.coverFile && (
+                        <button 
+                          onClick={() => setDeleteConfirmCurr(curr)}
+                          className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
+                          title="Remove Cover"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Cover Status Filter */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Cover Status
-            </label>
-            <div className="space-y-1.5">
-              {[
-                { id: 'has_cover', label: 'Cover Uploaded', count: curriculums.filter(c => !!c.coverFile).length },
-                { id: 'no_cover', label: 'Missing Cover', count: curriculums.filter(c => !c.coverFile).length },
-              ].map(status => {
-                const isChecked = selectedStatuses.includes(status.id);
-                return (
-                  <label 
-                    key={status.id} 
-                    className="flex items-center justify-between p-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm"
-                  >
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleStatus(status.id)}
-                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
-                      />
-                      <span className="ml-2 text-gray-700">{status.label}</span>
-                    </div>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
-                      {status.count}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
+              {sortedCurriculums.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-gray-500 italic">
+                    No curriculums found matching your search and filter criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
