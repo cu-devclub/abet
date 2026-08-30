@@ -5,7 +5,7 @@ import {
   Moon, Building2, GraduationCap, BookMarked,
   Search, ArrowUpDown, ChevronUp, ChevronDown, Filter, RotateCcw,
   ChevronRight, AlertTriangle, FileText, Eye, Layers,
-  Info, ShieldCheck, UserPlus, Check
+  Info, ShieldCheck, UserPlus
 } from 'lucide-react';
 
 
@@ -119,7 +119,7 @@ export interface CourseUserAccess {
   userEmail: string;
   userRole: string;
   userDept?: string;
-  access: 'Edit and Download' | 'Download';
+  access: 'Upload & Download' | 'Download';
   isDefault?: boolean;
   defaultReason?: string;
 }
@@ -133,7 +133,7 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
       userEmail: 'diana.instructor@company.com',
       userRole: 'instructor',
       userDept: 'Mathematics and Computer Science',
-      access: 'Edit and Download',
+      access: 'Upload & Download',
       isDefault: true,
       defaultReason: 'Primary Course Instructor'
     },
@@ -144,7 +144,7 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
       userEmail: 'charlie.staff@company.com',
       userRole: 'staff',
       userDept: 'Mathematics and Computer Science',
-      access: 'Edit and Download',
+      access: 'Upload & Download',
       isDefault: false,
       defaultReason: 'Teaching Assistant'
     },
@@ -179,7 +179,7 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
       userEmail: 'bob.admin@company.com',
       userRole: 'admin',
       userDept: 'Mathematics and Computer Science',
-      access: 'Edit and Download',
+      access: 'Upload & Download',
       isDefault: true,
       defaultReason: 'Lead Mathematics Instructor'
     },
@@ -202,7 +202,7 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
       userEmail: 'diana.instructor@company.com',
       userRole: 'instructor',
       userDept: 'Mathematics and Computer Science',
-      access: 'Edit and Download',
+      access: 'Upload & Download',
       isDefault: false
     },
     {
@@ -224,7 +224,7 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
       userEmail: 'fiona.ee@company.com',
       userRole: 'instructor',
       userDept: 'Electrical Engineering',
-      access: 'Edit and Download',
+      access: 'Upload & Download',
       isDefault: true
     },
     {
@@ -692,54 +692,175 @@ const SemesterHeaderFilter = ({
 
 // --- PAGES ---
 
-const LoginPage = ({ onLogin, onSimulateError }: { onLogin: () => void; onSimulateError: () => void }) => (
-  <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
-    
-    {/* Theme Selector */}
-    <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex gap-3">
-      <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 shadow-sm">
-        <Moon size={16} className="text-gray-500 mr-2" />
-        <select className="bg-transparent text-sm text-gray-700 outline-none cursor-pointer">
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-          <option value="system">System</option>
-        </select>
-      </div>
-    </div>
+interface SimulationAccount {
+  user: User;
+  roleTitle: string;
+  roleBadgeColor: string;
+  roleBadgeBg: string;
+  roleBadgeBorder: string;
+  accessSummary: string;
+  pagesAllowed: string[];
+}
 
-    <div className="sm:mx-auto sm:w-full sm:max-w-md">
-      <div className="bg-white py-8 px-4 shadow-xl shadow-gray-200/50 sm:rounded-2xl sm:px-10 border border-gray-100">
-        <div className="text-center mb-8">
-          <div className="mx-auto h-12 w-12 bg-indigo-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-indigo-200">
-            <BookOpen className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900">ABET</h2>
-          <p className="mt-2 text-sm text-gray-600">Please sign in to access your courses</p>
+const SIMULATION_ACCOUNTS: SimulationAccount[] = [
+  {
+    user: MOCK_USERS[0], // Alice Smith (super_admin)
+    roleTitle: 'Super Admin',
+    roleBadgeColor: 'text-purple-700',
+    roleBadgeBg: 'bg-purple-100',
+    roleBadgeBorder: 'border-purple-200',
+    accessSummary: 'Full system access (All 6 pages)',
+    pagesAllowed: ['Course Portfolios', 'Course Management', 'Cover', 'Users', 'Departments', 'Curriculums']
+  },
+  {
+    user: MOCK_USERS[1], // Bob Johnson (admin)
+    roleTitle: 'Admin',
+    roleBadgeColor: 'text-blue-700',
+    roleBadgeBg: 'bg-blue-100',
+    roleBadgeBorder: 'border-blue-200',
+    accessSummary: 'Manage courses, covers & view portfolios (3 pages)',
+    pagesAllowed: ['Course Portfolios', 'Course Management', 'Cover']
+  },
+  {
+    user: MOCK_USERS[3], // Diana Prince (instructor)
+    roleTitle: 'Instructor',
+    roleBadgeColor: 'text-teal-700',
+    roleBadgeBg: 'bg-teal-100',
+    roleBadgeBorder: 'border-teal-200',
+    accessSummary: 'View course portfolios only (1 page)',
+    pagesAllowed: ['Course Portfolios']
+  },
+  {
+    user: MOCK_USERS[2], // Charlie Davis (staff)
+    roleTitle: 'Staff',
+    roleBadgeColor: 'text-gray-700',
+    roleBadgeBg: 'bg-gray-100',
+    roleBadgeBorder: 'border-gray-300',
+    accessSummary: 'View course portfolios only (1 page)',
+    pagesAllowed: ['Course Portfolios']
+  }
+];
+
+const LoginPage = ({
+  onLogin,
+  onSimulateError
+}: {
+  onLogin: (user: User) => void;
+  onSimulateError: () => void;
+}) => {
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
+      {/* Theme Selector */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex gap-3">
+        <div className="flex items-center bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 shadow-sm">
+          <Moon size={16} className="text-gray-500 mr-2" />
+          <select className="bg-transparent text-sm text-gray-700 outline-none cursor-pointer">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="system">System</option>
+          </select>
         </div>
+      </div>
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow-xl shadow-gray-200/50 sm:rounded-2xl sm:px-10 border border-gray-100">
+          <div className="text-center mb-6">
+            <div className="mx-auto h-12 w-12 bg-indigo-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-indigo-200">
+              <BookOpen className="h-6 w-6 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900">ABET</h2>
+            <p className="mt-1.5 text-sm text-gray-600">Please sign in to access your courses</p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Primary Google Sign-in Button */}
+            <button
+              type="button"
+              onClick={() => setIsAccountModalOpen(true)}
+              className="w-full flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all cursor-pointer"
+            >
+              <svg className="h-5 w-5 mr-2.5 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              Sign in with Google
+            </button>
+
+            <div className="pt-4 text-center">
+              <button 
+                type="button"
+                onClick={onSimulateError} 
+                className="text-xs text-gray-400 hover:text-red-600 underline transition-colors cursor-pointer"
+              >
+                Simulate Permission Error
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Google Account / Role Chooser Modal */}
+      <Modal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        title="Sign in with Google"
+        maxWidth="max-w-md"
+      >
         <div className="space-y-4">
-          <button
-            onClick={onLogin}
-            className="w-full flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all"
-          >
-            <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+            <svg className="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            Sign in with Google
-          </button>
-          
-          <div className="pt-4 text-center">
-            <button onClick={onSimulateError} className="text-xs text-gray-400 hover:text-gray-600 underline">
-              Simulate Permission Error
-            </button>
+            <div>
+              <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Choose a simulated Google Account</h4>
+              <p className="text-[11px] text-gray-500">Select which role you would like to experience</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {SIMULATION_ACCOUNTS.map((item) => (
+              <button
+                key={item.user.id}
+                type="button"
+                onClick={() => {
+                  setIsAccountModalOpen(false);
+                  onLogin(item.user);
+                }}
+                className="w-full text-left p-3.5 rounded-xl border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition-all group cursor-pointer"
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${item.roleBadgeBg} ${item.roleBadgeColor} border ${item.roleBadgeBorder}`}>
+                    {item.user.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-sm text-gray-900 group-hover:text-indigo-900">{item.user.name}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${item.roleBadgeBg} ${item.roleBadgeColor} ${item.roleBadgeBorder}`}>
+                        {item.roleTitle}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 font-mono truncate">{item.user.email}</p>
+                    <div className="mt-1.5 pt-1.5 border-t border-gray-100 text-[11px]">
+                      <span className="text-gray-500">Accessible Pages: </span>
+                      <span className="text-indigo-700 font-semibold">{item.pagesAllowed.join(' • ')}</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
-      </div>
+      </Modal>
     </div>
-  </div>
-);
+  );
+};
 
 const UserManagement = ({
   users,
@@ -1470,13 +1591,13 @@ const CourseManagement = ({
 
   // Edit Access Modal State
   const [editingAccessData, setEditingAccessData] = useState<{ courseId: string; courseName: string; department?: string; curriculum?: string; year?: string; userAccess: CourseUserAccess } | null>(null);
-  const [editingAccessLevel, setEditingAccessLevel] = useState<'Edit and Download' | 'Download'>('Edit and Download');
+  const [editingAccessLevel, setEditingAccessLevel] = useState<'Upload & Download' | 'Download'>('Upload & Download');
   const [editingIsDefault, setEditingIsDefault] = useState(false);
 
   // Assign User to Course Modal State
   const [assigningCourse, setAssigningCourse] = useState<any | null>(null);
   const [assignUserId, setAssignUserId] = useState<string>('');
-  const [assignAccessLevel, setAssignAccessLevel] = useState<'Edit and Download' | 'Download'>('Edit and Download');
+  const [assignAccessLevel, setAssignAccessLevel] = useState<'Upload & Download' | 'Download'>('Upload & Download');
   const [assignIsDefault, setAssignIsDefault] = useState(false);
 
   // Toast message
@@ -1674,7 +1795,7 @@ const CourseManagement = ({
               userEmail: 'alice.admin@company.com',
               userRole: 'super_admin',
               userDept: editingDepartment,
-              access: 'Edit and Download',
+              access: 'Upload & Download',
               isDefault: true,
               defaultReason: 'Creator / Department Admin'
             }
@@ -1767,7 +1888,7 @@ const CourseManagement = ({
     const assignableUsers = (users || MOCK_USERS).filter(u => u.role !== 'admin' && u.role !== 'super_admin');
     const availableUser = assignableUsers.find(u => !existingUserIds.includes(u.id));
     setAssignUserId(availableUser ? String(availableUser.id) : assignableUsers[0]?.id ? String(assignableUsers[0].id) : '');
-    setAssignAccessLevel('Edit and Download');
+    setAssignAccessLevel('Upload & Download');
     setAssignIsDefault(false);
   };
 
@@ -1828,7 +1949,7 @@ const CourseManagement = ({
       <div className="space-y-4">
         {/* Row 1: Title + Action Buttons */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">Curriculum Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
           
           {/* Actions */}
           <div className="flex items-center gap-3 shrink-0">
@@ -2168,8 +2289,7 @@ const CourseManagement = ({
                                   <tr>
                                     <th className="px-4 py-2.5 text-left">Name</th>
                                     <th className="px-4 py-2.5 text-left">Email</th>
-                                    <th className="px-4 py-2.5 text-center">Upload</th>
-                                    <th className="px-4 py-2.5 text-center">Download</th>
+                                    <th className="px-4 py-2.5 text-left">Access</th>
                                     <th className="px-4 py-2.5 text-right">Action</th>
                                   </tr>
                                 </thead>
@@ -2194,32 +2314,18 @@ const CourseManagement = ({
                                         {userAccess.userEmail}
                                       </td>
 
-                                      {/* Upload Column */}
-                                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                                        {userAccess.access === 'Edit and Download' ? (
-                                          <div className="inline-flex items-center gap-1.5 text-emerald-600">
-                                            <span className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center">
-                                              <Check size={13} className="text-emerald-700 stroke-[3]" />
-                                            </span>
-                                            {userAccess.isDefault && (
-                                              <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100/90 px-1.5 py-0.2 rounded" title={userAccess.defaultReason || 'Default role permission'}>
-                                                (default)
-                                              </span>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <span className="text-gray-300 font-semibold">—</span>
-                                        )}
-                                      </td>
-
-                                      {/* Download Column */}
-                                      <td className="px-4 py-3 whitespace-nowrap text-center">
-                                        <div className="inline-flex items-center gap-1.5 text-emerald-600">
-                                          <span className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center">
-                                            <Check size={13} className="text-emerald-700 stroke-[3]" />
+                                      {/* Access Column */}
+                                      <td className="px-4 py-3 whitespace-nowrap">
+                                        <div className="inline-flex items-center gap-1.5">
+                                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                            userAccess.access === 'Upload & Download'
+                                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                                          }`}>
+                                            {userAccess.access}
                                           </span>
                                           {userAccess.isDefault && (
-                                            <span className="text-[10px] font-medium text-sky-700 bg-sky-100/90 px-1.5 py-0.2 rounded" title={userAccess.defaultReason || 'Default role permission'}>
+                                            <span className="text-[10px] font-medium text-gray-500 bg-gray-100 border border-gray-200/80 px-1.5 py-0.5 rounded" title={userAccess.defaultReason || 'Default role permission'}>
                                               (default)
                                             </span>
                                           )}
@@ -2242,7 +2348,7 @@ const CourseManagement = ({
 
                                   {visibleCourseUsers.length === 0 && (
                                     <tr>
-                                      <td colSpan={5} className="text-center py-6 text-gray-400 italic">
+                                      <td colSpan={4} className="text-center py-6 text-gray-400 italic">
                                         No instructors or staff currently assigned to this course. Click "Assign New User" to add access.
                                       </td>
                                     </tr>
@@ -2361,10 +2467,10 @@ const CourseManagement = ({
                 Select permission for this course portfolio
               </label>
               <div className="space-y-2.5">
-                {/* Upload and Download */}
+                {/* Upload & Download */}
                 <label
                   className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    editingAccessLevel === 'Edit and Download'
+                    editingAccessLevel === 'Upload & Download'
                       ? 'border-emerald-500 bg-emerald-50/50 shadow-2xs'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
                   }`}
@@ -2372,15 +2478,15 @@ const CourseManagement = ({
                   <input
                     type="radio"
                     name="editAccessLevel"
-                    value="Edit and Download"
-                    checked={editingAccessLevel === 'Edit and Download'}
-                    onChange={() => setEditingAccessLevel('Edit and Download')}
+                    value="Upload & Download"
+                    checked={editingAccessLevel === 'Upload & Download'}
+                    onChange={() => setEditingAccessLevel('Upload & Download')}
                     className="h-4 w-4 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
                   />
-                  <span className="text-sm font-bold text-gray-900">Upload and Download</span>
+                  <span className="text-sm font-bold text-gray-900">Upload & Download</span>
                 </label>
 
-                {/* Download only */}
+                {/* Download */}
                 <label
                   className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     editingAccessLevel === 'Download'
@@ -2396,7 +2502,7 @@ const CourseManagement = ({
                     onChange={() => setEditingAccessLevel('Download')}
                     className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
                   />
-                  <span className="text-sm font-bold text-gray-900">Download only</span>
+                  <span className="text-sm font-bold text-gray-900">Download</span>
                 </label>
               </div>
             </div>
@@ -2494,9 +2600,10 @@ const CourseManagement = ({
                 Select permission for this course portfolio
               </label>
               <div className="space-y-2.5">
+                {/* Upload & Download */}
                 <label
                   className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    assignAccessLevel === 'Edit and Download'
+                    assignAccessLevel === 'Upload & Download'
                       ? 'border-emerald-500 bg-emerald-50/50 shadow-2xs'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
                   }`}
@@ -2504,14 +2611,15 @@ const CourseManagement = ({
                   <input
                     type="radio"
                     name="assignAccessLevel"
-                    value="Edit and Download"
-                    checked={assignAccessLevel === 'Edit and Download'}
-                    onChange={() => setAssignAccessLevel('Edit and Download')}
+                    value="Upload & Download"
+                    checked={assignAccessLevel === 'Upload & Download'}
+                    onChange={() => setAssignAccessLevel('Upload & Download')}
                     className="h-4 w-4 text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
                   />
-                  <span className="text-sm font-bold text-gray-900">Upload and Download</span>
+                  <span className="text-sm font-bold text-gray-900">Upload & Download</span>
                 </label>
 
+                {/* Download */}
                 <label
                   className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     assignAccessLevel === 'Download'
@@ -2527,7 +2635,7 @@ const CourseManagement = ({
                     onChange={() => setAssignAccessLevel('Download')}
                     className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
                   />
-                  <span className="text-sm font-bold text-gray-900">Download only</span>
+                  <span className="text-sm font-bold text-gray-900">Download</span>
                 </label>
               </div>
             </div>
@@ -4459,6 +4567,7 @@ const CourseList = ({
 // --- MAIN APP COMPONENT ---
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User>(MOCK_USERS[0]);
   const [activeTab, setActiveTab] = useState('courses'); // 'courses', 'course_management', 'cover_management', 'users', 'departments', 'curriculums'
   const [showErrorModal, setShowErrorModal] = useState(false);
 
@@ -4468,14 +4577,29 @@ export default function App() {
   const [courses, setCourses] = useState<any[]>(MOCK_COURSES);
   const [files, setFiles] = useState<any[]>(MOCK_FILES);
 
-  // Mock User Session
-  const currentUser = { name: 'Admin User', role: 'super_admin' };
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    setActiveTab('courses');
+  };
+
+  const handleSwitchRole = (newUser: User) => {
+    setCurrentUser(newUser);
+    const allowedTabs = newUser.role === 'super_admin'
+      ? ['courses', 'course_management', 'cover_management', 'users', 'departments', 'curriculums']
+      : newUser.role === 'admin'
+      ? ['courses', 'course_management', 'cover_management']
+      : ['courses'];
+    if (!allowedTabs.includes(activeTab)) {
+      setActiveTab('courses');
+    }
+  };
 
   if (!isAuthenticated) {
     return (
       <>
         <LoginPage 
-          onLogin={() => setIsAuthenticated(true)} 
+          onLogin={handleLogin} 
           onSimulateError={() => setShowErrorModal(true)} 
         />
         
@@ -4494,8 +4618,9 @@ export default function App() {
               Your Google account was verified, but you do not have permission to access the ABET system. Please contact the system administrator.
             </p>
             <button 
+              type="button"
               onClick={() => setShowErrorModal(false)}
-              className="mt-6 px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
+              className="mt-6 px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 cursor-pointer"
             >
               Back to Login
             </button>
@@ -4515,46 +4640,53 @@ export default function App() {
         </div>
         
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {/* Course Portfolios: Visible to ALL (Instructor, Staff, Admin, Super Admin) */}
           <button
             onClick={() => setActiveTab('courses')}
-            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'courses' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
+            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'courses' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
           >
             <BookOpen size={18} className="mr-3" /> Course Portfolios
           </button>
           
+          {/* Admin & Super Admin: Course Management & Cover */}
           {['super_admin', 'admin'].includes(currentUser.role) && (
             <>
               <button
                 onClick={() => setActiveTab('course_management')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'course_management' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'course_management' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                <BookMarked size={18} className="mr-3" /> Curriculum Management
+                <BookMarked size={18} className="mr-3" /> Course Management
               </button>
 
               <button
                 onClick={() => setActiveTab('cover_management')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'cover_management' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'cover_management' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 <Layers size={18} className="mr-3" /> Cover
               </button>
+            </>
+          )}
 
+          {/* Super Admin only: Users, Departments, Curriculums */}
+          {currentUser.role === 'super_admin' && (
+            <>
               <button
                 onClick={() => setActiveTab('users')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'users' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'users' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 <Users size={18} className="mr-3" /> Users
               </button>
 
               <button
                 onClick={() => setActiveTab('departments')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'departments' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'departments' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 <Building2 size={18} className="mr-3" /> Departments
               </button>
 
               <button
                 onClick={() => setActiveTab('curriculums')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'curriculums' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'curriculums' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 <GraduationCap size={18} className="mr-3" /> Curriculums
               </button>
@@ -4574,19 +4706,57 @@ export default function App() {
           </div>
         </div>
 
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center mb-4 px-2">
-            <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm mr-3">
+        {/* User Profile & Role Switcher */}
+        <div className="p-4 border-t border-gray-200 space-y-3">
+          <div className="flex items-center px-1">
+            <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-sm mr-3 shrink-0 ${
+              currentUser.role === 'super_admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+              currentUser.role === 'admin' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+              currentUser.role === 'instructor' ? 'bg-teal-100 text-teal-700 border border-teal-200' :
+              'bg-slate-100 text-slate-700 border border-slate-200'
+            }`}>
               {currentUser.name.charAt(0)}
             </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium text-gray-900 truncate">{currentUser.name}</p>
-              <p className="text-xs text-gray-500 capitalize">{currentUser.role.replace('_', ' ')}</p>
+            <div className="overflow-hidden flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-900 truncate">{currentUser.name}</p>
+              <div className="mt-0.5">
+                <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                  currentUser.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
+                  currentUser.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                  currentUser.role === 'instructor' ? 'bg-teal-100 text-teal-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {currentUser.role.replace('_', ' ')}
+                </span>
+              </div>
             </div>
           </div>
+
+          {/* Quick Role Switcher */}
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-2">
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+              Switch Role Simulation:
+            </label>
+            <select
+              value={currentUser.id}
+              onChange={(e) => {
+                const targetId = Number(e.target.value);
+                const targetUser = MOCK_USERS.find(u => u.id === targetId) || MOCK_USERS[0];
+                handleSwitchRole(targetUser);
+              }}
+              className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-medium text-gray-700 outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value={1}>Alice Smith (Super Admin)</option>
+              <option value={2}>Bob Johnson (Admin)</option>
+              <option value={4}>Diana Prince (Instructor)</option>
+              <option value={3}>Charlie Davis (Staff)</option>
+            </select>
+          </div>
+
           <button 
+            type="button"
             onClick={() => setIsAuthenticated(false)}
-            className="w-full flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            className="w-full flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors cursor-pointer"
           >
             <LogOut size={16} className="mr-2" /> Sign Out
           </button>
@@ -4603,7 +4773,7 @@ export default function App() {
             curriculums={curriculums}
           />
         )}
-        {activeTab === 'course_management' && (
+        {activeTab === 'course_management' && ['super_admin', 'admin'].includes(currentUser.role) && (
           <CourseManagement 
             courses={courses} 
             setCourses={setCourses} 
@@ -4614,7 +4784,7 @@ export default function App() {
             users={users}
           />
         )}
-        {activeTab === 'cover_management' && (
+        {activeTab === 'cover_management' && ['super_admin', 'admin'].includes(currentUser.role) && (
           <CoverManagement 
             curriculums={curriculums} 
             setCurriculums={setCurriculums} 
@@ -4622,7 +4792,7 @@ export default function App() {
             courses={courses} 
           />
         )}
-        {activeTab === 'users' && (
+        {activeTab === 'users' && currentUser.role === 'super_admin' && (
           <UserManagement 
             users={users} 
             setUsers={setUsers} 
@@ -4630,7 +4800,7 @@ export default function App() {
             curriculums={curriculums} 
           />
         )}
-        {activeTab === 'departments' && (
+        {activeTab === 'departments' && currentUser.role === 'super_admin' && (
           <DepartmentManagement 
             departments={departments} 
             setDepartments={setDepartments} 
@@ -4638,7 +4808,7 @@ export default function App() {
             users={users} 
           />
         )}
-        {activeTab === 'curriculums' && (
+        {activeTab === 'curriculums' && currentUser.role === 'super_admin' && (
           <CurriculumManagement 
             curriculums={curriculums} 
             setCurriculums={setCurriculums} 
