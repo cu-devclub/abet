@@ -21,6 +21,8 @@ interface User {
   role: string;
   department: string;
   curriculum: string;
+  allowedDepartments?: string[];
+  allowedCurriculums?: string[];
   courses?: CourseAccess[];
 }
 
@@ -100,16 +102,69 @@ const MOCK_COURSES = [
   { id: 'MATH205', name: 'Calculus and Linear Algebra', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: '2024', semester: '1' },
   { id: 'CS102', name: 'Data Structures and Algorithms', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '2' },
   { id: 'CS305', name: 'Software Engineering', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
-  { id: 'EE101', name: 'Circuit Theory I', department: 'Electrical Engineering', curriculum: 'Electrical Engineering', year: '2024', semester: '2' }
+  { id: 'EE101', name: 'Circuit Theory I', department: 'Electrical Engineering', curriculum: 'Electrical Engineering', year: '2024', semester: '2' },
+  { id: 'CS204', name: 'Hardware & System Architecture', department: 'Electrical Engineering', curriculum: 'Computer Science', year: '2024', semester: '2' }
 ];
 
-const MOCK_USERS = [
-  { id: 1, name: 'Alice Smith', email: 'alice.admin@company.com', role: 'super_admin', department: 'Mathematics and Computer Science', curriculum: 'Computer Science' },
-  { id: 2, name: 'Bob Johnson', email: 'bob.admin@company.com', role: 'admin', department: 'Mathematics and Computer Science', curriculum: 'Mathematics' },
-  { id: 3, name: 'Charlie Davis', email: 'charlie.staff@company.com', role: 'staff', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', courses: [{ id: 'CS101', access: 'edit' }, { id: 'MATH205', access: 'view' }] },
-  { id: 4, name: 'Diana Prince', email: 'diana.instructor@company.com', role: 'instructor', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', courses: [{ id: 'CS101', access: 'edit' }] },
-  { id: 5, name: 'Evan Wright', email: 'evan.qa@company.com', role: 'staff', department: 'Mathematics and Computer Science', curriculum: 'Computer Science' },
-  { id: 6, name: 'Fiona Gallagher', email: 'fiona.ee@company.com', role: 'instructor', department: 'Electrical Engineering', curriculum: 'Electrical Engineering' },
+const MOCK_USERS: User[] = [
+  { 
+    id: 1, 
+    name: 'Alice Smith', 
+    email: 'alice.admin@company.com', 
+    role: 'super_admin', 
+    department: 'Mathematics and Computer Science', 
+    curriculum: 'Computer Science' 
+  },
+  { 
+    id: 2, 
+    name: 'Bob Johnson', 
+    email: 'bob.admin@company.com', 
+    role: 'admin', 
+    department: 'Mathematics and Computer Science', 
+    curriculum: 'Mathematics' 
+  },
+  { 
+    id: 3, 
+    name: 'Charlie Davis', 
+    email: 'charlie.staff@company.com', 
+    role: 'staff', 
+    department: 'Mathematics and Computer Science', 
+    curriculum: 'Computer Science',
+    allowedDepartments: ['Mathematics and Computer Science'], // 1 department for staff
+    allowedCurriculums: ['Computer Science', 'Mathematics'],  // 2 curriculums for staff
+    courses: [{ id: 'CS101', access: 'edit' }, { id: 'MATH205', access: 'view' }, { id: 'CS102', access: 'view' }, { id: 'CS305', access: 'view' }] 
+  },
+  { 
+    id: 4, 
+    name: 'Diana Prince', 
+    email: 'diana.instructor@company.com', 
+    role: 'instructor', 
+    department: 'Mathematics and Computer Science', 
+    curriculum: 'Computer Science', 
+    allowedDepartments: ['Mathematics and Computer Science', 'Electrical Engineering'], // 2 departments for instructor
+    allowedCurriculums: ['Computer Science'], // 1 curriculum for instructor
+    courses: [{ id: 'CS101', access: 'edit' }, { id: 'CS102', access: 'edit' }, { id: 'CS305', access: 'edit' }, { id: 'CS204', access: 'edit' }] 
+  },
+  { 
+    id: 5, 
+    name: 'Evan Wright', 
+    email: 'evan.qa@company.com', 
+    role: 'staff', 
+    department: 'Mathematics and Computer Science', 
+    curriculum: 'Computer Science',
+    allowedDepartments: ['Mathematics and Computer Science'],
+    allowedCurriculums: ['Computer Science', 'Mathematics']
+  },
+  { 
+    id: 6, 
+    name: 'Fiona Gallagher', 
+    email: 'fiona.ee@company.com', 
+    role: 'instructor', 
+    department: 'Electrical Engineering', 
+    curriculum: 'Electrical Engineering',
+    allowedDepartments: ['Electrical Engineering', 'Mathematics and Computer Science'],
+    allowedCurriculums: ['Electrical Engineering']
+  },
 ];
 
 export interface CourseUserAccess {
@@ -237,6 +292,29 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
       access: 'Download',
       isDefault: false
     }
+  ],
+  'CS204': [
+    {
+      id: 'a11',
+      userId: 4,
+      userName: 'Diana Prince',
+      userEmail: 'diana.instructor@company.com',
+      userRole: 'instructor',
+      userDept: 'Electrical Engineering',
+      access: 'Upload & Download',
+      isDefault: true,
+      defaultReason: 'Course Instructor'
+    },
+    {
+      id: 'a12',
+      userId: 1,
+      userName: 'Alice Smith',
+      userEmail: 'alice.admin@company.com',
+      userRole: 'super_admin',
+      userDept: 'Electrical Engineering',
+      access: 'Download',
+      isDefault: false
+    }
   ]
 };
 
@@ -296,6 +374,33 @@ const MOCK_FILES: CourseFile[] = [
         suggestedFix: 'Re-upload the archive including all required rubric definition spreadsheets.'
       }
     ]
+  },
+  { 
+    id: 4, 
+    courseId: 'CS305', 
+    name: 'CS305_Portfolio_Final.pdf', 
+    year: '2024', 
+    semester: '1', 
+    time: '18/10/2024 11:20', 
+    status: 'generated' 
+  },
+  { 
+    id: 5, 
+    courseId: 'EE101', 
+    name: 'EE101_Summary_Final.pdf', 
+    year: '2024', 
+    semester: '2', 
+    time: '12/10/2024 14:00', 
+    status: 'generated' 
+  },
+  { 
+    id: 6, 
+    courseId: 'CS204', 
+    name: 'CS204_Portfolio_Summary.pdf', 
+    year: '2024', 
+    semester: '2', 
+    time: '20/10/2024 14:15', 
+    status: 'generated' 
   }
 ];
 
@@ -698,8 +803,6 @@ interface SimulationAccount {
   roleBadgeColor: string;
   roleBadgeBg: string;
   roleBadgeBorder: string;
-  accessSummary: string;
-  pagesAllowed: string[];
 }
 
 const SIMULATION_ACCOUNTS: SimulationAccount[] = [
@@ -708,36 +811,28 @@ const SIMULATION_ACCOUNTS: SimulationAccount[] = [
     roleTitle: 'Super Admin',
     roleBadgeColor: 'text-purple-700',
     roleBadgeBg: 'bg-purple-100',
-    roleBadgeBorder: 'border-purple-200',
-    accessSummary: 'Full system access (All 6 pages)',
-    pagesAllowed: ['Course Portfolios', 'Course Management', 'Cover', 'Users', 'Departments', 'Curriculums']
+    roleBadgeBorder: 'border-purple-200'
   },
   {
     user: MOCK_USERS[1], // Bob Johnson (admin)
     roleTitle: 'Admin',
     roleBadgeColor: 'text-blue-700',
     roleBadgeBg: 'bg-blue-100',
-    roleBadgeBorder: 'border-blue-200',
-    accessSummary: 'Manage courses, covers & view portfolios (3 pages)',
-    pagesAllowed: ['Course Portfolios', 'Course Management', 'Cover']
+    roleBadgeBorder: 'border-blue-200'
   },
   {
     user: MOCK_USERS[3], // Diana Prince (instructor)
     roleTitle: 'Instructor',
     roleBadgeColor: 'text-teal-700',
     roleBadgeBg: 'bg-teal-100',
-    roleBadgeBorder: 'border-teal-200',
-    accessSummary: 'View course portfolios only (1 page)',
-    pagesAllowed: ['Course Portfolios']
+    roleBadgeBorder: 'border-teal-200'
   },
   {
     user: MOCK_USERS[2], // Charlie Davis (staff)
     roleTitle: 'Staff',
     roleBadgeColor: 'text-gray-700',
     roleBadgeBg: 'bg-gray-100',
-    roleBadgeBorder: 'border-gray-300',
-    accessSummary: 'View course portfolios only (1 page)',
-    pagesAllowed: ['Course Portfolios']
+    roleBadgeBorder: 'border-gray-300'
   }
 ];
 
@@ -847,10 +942,6 @@ const LoginPage = ({
                       </span>
                     </div>
                     <p className="text-xs text-gray-500 font-mono truncate">{item.user.email}</p>
-                    <div className="mt-1.5 pt-1.5 border-t border-gray-100 text-[11px]">
-                      <span className="text-gray-500">Accessible Pages: </span>
-                      <span className="text-indigo-700 font-semibold">{item.pagesAllowed.join(' • ')}</span>
-                    </div>
                   </div>
                 </div>
               </button>
@@ -3909,12 +4000,14 @@ const CourseList = ({
   courses,
   files,
   departments,
-  curriculums
+  curriculums,
+  currentUser
 }: {
   courses: any[];
   files: any[];
   departments: Department[];
   curriculums: Curriculum[];
+  currentUser?: User;
 }) => {
   const [uploadTargetCourse, setUploadTargetCourse] = useState<any>(null);
   const [selectedErrorFile, setSelectedErrorFile] = useState<{ course: any; file: CourseFile } | null>(null);
@@ -3934,6 +4027,43 @@ const CourseList = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<string>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Filter departments & curriculums based on user role and permissions
+  const availableDepartments = React.useMemo(() => {
+    if (!currentUser || ['super_admin', 'admin'].includes(currentUser.role)) {
+      return departments;
+    }
+    if (currentUser.allowedDepartments && currentUser.allowedDepartments.length > 0) {
+      return departments.filter(d => currentUser.allowedDepartments!.includes(d.name));
+    }
+    if (currentUser.role === 'instructor') {
+      // 2 departments for instructor
+      return departments.filter(d => ['Mathematics and Computer Science', 'Electrical Engineering'].includes(d.name));
+    }
+    if (currentUser.role === 'staff') {
+      // 1 department for staff
+      return departments.filter(d => d.name === (currentUser.department || 'Mathematics and Computer Science'));
+    }
+    return departments;
+  }, [currentUser, departments]);
+
+  const availableCurriculums = React.useMemo(() => {
+    if (!currentUser || ['super_admin', 'admin'].includes(currentUser.role)) {
+      return curriculums;
+    }
+    if (currentUser.allowedCurriculums && currentUser.allowedCurriculums.length > 0) {
+      return curriculums.filter(c => currentUser.allowedCurriculums!.includes(c.name));
+    }
+    if (currentUser.role === 'instructor') {
+      // 1 curriculum for instructor
+      return curriculums.filter(c => c.name === (currentUser.curriculum || 'Computer Science'));
+    }
+    if (currentUser.role === 'staff') {
+      // 2 curriculums for staff
+      return curriculums.filter(c => ['Computer Science', 'Mathematics'].includes(c.name));
+    }
+    return curriculums;
+  }, [currentUser, curriculums]);
 
   const toggleSemester = (sem: string) => {
     if (selectedSemesters.includes(sem)) {
@@ -3956,7 +4086,7 @@ const CourseList = ({
     if (deptName && selectedCurriculum) {
       const parentDept = departments.find(d => d.name === deptName);
       const curr = curriculums.find(c => c.name === selectedCurriculum);
-      if (curr && parentDept && curr.departmentId !== parentDept.id) {
+      if (curr && parentDept && curr.departmentId !== parentDept.id && !(currentUser?.role === 'instructor' && curr.name === 'Computer Science')) {
         setSelectedCurriculum('');
       }
     }
@@ -3989,6 +4119,19 @@ const CourseList = ({
     const statusText = file ? file.status : 'No files';
     const query = searchQuery.toLowerCase();
     
+    // Role-based scoping to user's permitted departments & curriculums
+    if (currentUser && !['super_admin', 'admin'].includes(currentUser.role)) {
+      const allowedDeptNames = availableDepartments.map(d => d.name);
+      const allowedCurrNames = availableCurriculums.map(c => c.name);
+      
+      if (!allowedDeptNames.includes(course.department)) {
+        return false;
+      }
+      if (!allowedCurrNames.includes(course.curriculum)) {
+        return false;
+      }
+    }
+
     const matchesYear = (course.year || '2024') === selectedYear;
     const matchesSemester = selectedSemesters.length === 0 || selectedSemesters.includes(course.semester || '1');
     const matchesDept = !selectedDepartment || course.department === selectedDepartment;
@@ -4050,7 +4193,16 @@ const CourseList = ({
       <div className="space-y-4">
         {/* Row 1: Title */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Course Portfolios</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Course Portfolios</h1>
+            {currentUser && !['super_admin', 'admin'].includes(currentUser.role) && (
+              <p className="text-xs text-gray-500 mt-0.5">
+                {currentUser.role === 'instructor' 
+                  ? 'Showing courses from your 2 affiliated departments and 1 curriculum.' 
+                  : 'Showing courses from your department across 2 curriculums.'}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Row 2: Filters under page title */}
@@ -4060,7 +4212,7 @@ const CourseList = ({
             label="Department"
             value={selectedDepartment}
             onChange={handleDepartmentChange}
-            options={departments.map(d => ({ value: d.name, label: d.name, subtext: d.code }))}
+            options={availableDepartments.map(d => ({ value: d.name, label: d.name, subtext: d.code }))}
             allLabel="All Departments"
             icon={Building2}
           />
@@ -4070,10 +4222,11 @@ const CourseList = ({
             label="Curriculum"
             value={selectedCurriculum}
             onChange={setSelectedCurriculum}
-            options={curriculums
+            options={availableCurriculums
               .filter(c => {
                 if (!selectedDepartment) return true;
                 const parentDept = departments.find(d => d.name === selectedDepartment);
+                if (currentUser?.role === 'instructor') return true;
                 return parentDept && c.departmentId === parentDept.id;
               })
               .map(c => ({ value: c.name, label: c.name, subtext: c.code }))
@@ -4583,18 +4736,6 @@ export default function App() {
     setActiveTab('courses');
   };
 
-  const handleSwitchRole = (newUser: User) => {
-    setCurrentUser(newUser);
-    const allowedTabs = newUser.role === 'super_admin'
-      ? ['courses', 'course_management', 'cover_management', 'users', 'departments', 'curriculums']
-      : newUser.role === 'admin'
-      ? ['courses', 'course_management', 'cover_management']
-      : ['courses'];
-    if (!allowedTabs.includes(activeTab)) {
-      setActiveTab('courses');
-    }
-  };
-
   if (!isAuthenticated) {
     return (
       <>
@@ -4732,26 +4873,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Quick Role Switcher */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-2">
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-              Switch Role Simulation:
-            </label>
-            <select
-              value={currentUser.id}
-              onChange={(e) => {
-                const targetId = Number(e.target.value);
-                const targetUser = MOCK_USERS.find(u => u.id === targetId) || MOCK_USERS[0];
-                handleSwitchRole(targetUser);
-              }}
-              className="w-full bg-white border border-gray-300 rounded px-2 py-1 text-xs font-medium text-gray-700 outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value={1}>Alice Smith (Super Admin)</option>
-              <option value={2}>Bob Johnson (Admin)</option>
-              <option value={4}>Diana Prince (Instructor)</option>
-              <option value={3}>Charlie Davis (Staff)</option>
-            </select>
-          </div>
 
           <button 
             type="button"
@@ -4771,6 +4892,7 @@ export default function App() {
             files={files} 
             departments={departments}
             curriculums={curriculums}
+            currentUser={currentUser}
           />
         )}
         {activeTab === 'course_management' && ['super_admin', 'admin'].includes(currentUser.role) && (
