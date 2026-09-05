@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Users, BookOpen, LogOut, Plus, X, Edit2, 
   Trash2, Download, UploadCloud, AlertCircle, CheckCircle2,
   Moon, Building2, GraduationCap, BookMarked,
   Search, ArrowUpDown, ChevronUp, ChevronDown, Filter, RotateCcw,
-  ChevronRight, AlertTriangle, FileText, Eye, Layers,
-  Info, ShieldCheck, UserPlus
+  ChevronRight, ChevronLeft, AlertTriangle, FileText, Eye, Layers,
+  Info, ShieldCheck, UserPlus, Lock
 } from 'lucide-react';
 
 
@@ -648,6 +649,96 @@ const SearchableSelect = ({
   );
 };
 
+// --- SMART FLOATING POPOVER HOOK (DESKTOP CONTEXT-MENU STYLE COLLISION DETECTION) ---
+const useSmartPopover = (isOpen: boolean, setIsOpen: (open: boolean) => void) => {
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const popoverRef = React.useRef<HTMLDivElement>(null);
+  const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    zIndex: 9999,
+    visibility: 'hidden',
+  });
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    const updatePosition = () => {
+      if (!buttonRef.current) return;
+      const btnRect = buttonRef.current.getBoundingClientRect();
+      const popElem = popoverRef.current;
+
+      const width = popElem ? (popElem.offsetWidth || popElem.getBoundingClientRect().width) : 224;
+      const height = popElem ? (popElem.offsetHeight || popElem.getBoundingClientRect().height) : 260;
+      const pad = 12;
+
+      // Horizontal smart edge collision detection (auto think left vs right)
+      let left = btnRect.left;
+      // If expanding right would go off-screen, flip to expand left (align right edges)
+      if (left + width > window.innerWidth - pad) {
+        left = btnRect.right - width;
+      }
+      // Safety clamp to ensure it never goes off either side of the viewport
+      if (left < pad) {
+        left = pad;
+      }
+      if (left + width > window.innerWidth - pad) {
+        left = Math.max(pad, window.innerWidth - width - pad);
+      }
+
+      // Vertical smart edge collision detection (auto think down vs up)
+      let top = btnRect.bottom + 6;
+      // If expanding downward would go off-screen and there is space above, expand upward
+      if (top + height > window.innerHeight - pad && btnRect.top - height > pad) {
+        top = btnRect.top - height - 6;
+      } else if (top + height > window.innerHeight - pad) {
+        top = Math.max(pad, window.innerHeight - height - pad);
+      }
+
+      setPopoverStyle({
+        position: 'fixed',
+        top: `${Math.round(top)}px`,
+        left: `${Math.round(left)}px`,
+        zIndex: 9999,
+        visibility: 'visible',
+      });
+    };
+
+    updatePosition();
+    const frameId = requestAnimationFrame(updatePosition);
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        buttonRef.current &&
+        !buttonRef.current.contains(target) &&
+        popoverRef.current &&
+        !popoverRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleScrollOrResize = () => {
+      updatePosition();
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen, setIsOpen]);
+
+  return { buttonRef, popoverRef, popoverStyle };
+};
+
 const SemesterHeaderFilter = ({
   sortField,
   sortDirection,
@@ -666,28 +757,14 @@ const SemesterHeaderFilter = ({
   onClearSemesters: () => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
+  const { buttonRef, popoverRef, popoverStyle } = useSmartPopover(isOpen, setIsOpen);
 
   const hasFilter = selectedSemesters.length > 0;
   const isSorted = sortField === 'semester';
 
   return (
     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative select-none">
-      <div className="flex items-center gap-1.5" ref={dropdownRef}>
+      <div className="flex items-center gap-1.5">
         {/* Sortable Header Label */}
         <div 
           onClick={onSort} 
@@ -705,6 +782,7 @@ const SemesterHeaderFilter = ({
         {/* Filter Trigger Button */}
         <div className="relative">
           <button
+            ref={buttonRef}
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -725,11 +803,13 @@ const SemesterHeaderFilter = ({
             )}
           </button>
 
-          {/* Filter Popover Dropdown */}
-          {isOpen && (
+          {/* Smart Floating Filter Popover rendered outside table into body */}
+          {isOpen && createPortal(
             <div 
+              ref={popoverRef}
+              style={popoverStyle}
               onClick={(e) => e.stopPropagation()}
-              className="absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 p-2.5 z-50 normal-case font-normal text-gray-700 animate-in fade-in zoom-in-95 duration-100"
+              className="w-48 bg-white rounded-xl shadow-2xl border border-gray-200/90 p-2.5 normal-case font-normal text-gray-700 animate-in fade-in zoom-in-95 duration-100"
             >
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
                 <span className="text-xs font-bold text-gray-800">Filter Semester</span>
@@ -787,7 +867,153 @@ const SemesterHeaderFilter = ({
                   Done
                 </button>
               </div>
-            </div>
+            </div>,
+            document.body
+          )}
+        </div>
+      </div>
+    </th>
+  );
+};
+
+const RoleHeaderFilter = ({
+  sortField,
+  sortDirection,
+  onSort,
+  selectedRoles,
+  onToggleRole,
+  onSelectAllRoles,
+  onClearRoles,
+}: {
+  sortField: string;
+  sortDirection: 'asc' | 'desc';
+  onSort: () => void;
+  selectedRoles: string[];
+  onToggleRole: (role: string) => void;
+  onSelectAllRoles: () => void;
+  onClearRoles: () => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { buttonRef, popoverRef, popoverStyle } = useSmartPopover(isOpen, setIsOpen);
+
+  const hasFilter = selectedRoles.length > 0;
+  const isSorted = sortField === 'role';
+
+  const roleOptions = [
+    { id: 'super_admin', label: 'Super Admin', badgeClass: 'bg-purple-100 text-purple-800 border-purple-200' },
+    { id: 'admin', label: 'Admin', badgeClass: 'bg-blue-100 text-blue-800 border-blue-200' },
+    { id: 'instructor', label: 'Instructor', badgeClass: 'bg-teal-100 text-teal-800 border-teal-200' },
+    { id: 'staff', label: 'Staff', badgeClass: 'bg-gray-100 text-gray-800 border-gray-200' },
+  ];
+
+  return (
+    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative select-none">
+      <div className="flex items-center gap-1.5">
+        {/* Sortable Header Label */}
+        <div 
+          onClick={onSort} 
+          className="flex items-center gap-1 cursor-pointer hover:text-gray-900 transition-colors"
+          title="Click to sort by role"
+        >
+          <span>Role</span>
+          {isSorted ? (
+            sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+          ) : (
+            <ArrowUpDown size={12} className="text-gray-400" />
+          )}
+        </div>
+
+        {/* Filter Trigger Button */}
+        <div className="relative">
+          <button
+            ref={buttonRef}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(!isOpen);
+            }}
+            className={`p-1 rounded-md transition-all cursor-pointer flex items-center gap-0.5 ${
+              hasFilter 
+                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200/60'
+            }`}
+            title="Filter by Role"
+          >
+            <Filter size={13} className={hasFilter ? 'fill-indigo-600 text-indigo-600' : ''} />
+            {hasFilter && (
+              <span className="text-[10px] font-bold leading-none px-1 py-0.2 bg-indigo-600 text-white rounded-full">
+                {selectedRoles.length}
+              </span>
+            )}
+          </button>
+
+          {/* Smart Floating Filter Popover with Auto Direction and Screen Edge Collision Avoidance */}
+          {isOpen && createPortal(
+            <div 
+              ref={popoverRef}
+              style={popoverStyle}
+              onClick={(e) => e.stopPropagation()}
+              className="w-56 bg-white rounded-xl shadow-2xl border border-gray-200/90 p-2.5 normal-case font-normal text-gray-700 animate-in fade-in zoom-in-95 duration-100"
+            >
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+                <span className="text-xs font-bold text-gray-800">Filter Role</span>
+                {hasFilter ? (
+                  <button
+                    type="button"
+                    onClick={onClearRoles}
+                    className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onSelectAllRoles}
+                    className="text-[11px] text-gray-500 hover:text-gray-700 cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                {roleOptions.map((role) => {
+                  const isChecked = selectedRoles.includes(role.id);
+                  return (
+                    <label
+                      key={role.id}
+                      className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                        isChecked ? 'bg-indigo-50 text-indigo-900 font-medium' : 'hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => onToggleRole(role.id)}
+                          className="h-3.5 w-3.5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <span>{role.label}</span>
+                      </div>
+                      <span className={`text-[9px] px-1.5 py-0.2 rounded border font-semibold ${role.badgeClass}`}>
+                        {role.id === 'super_admin' ? 'SUPER' : role.id.toUpperCase()}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="pt-2 mt-2 border-t border-gray-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-2.5 py-1 bg-indigo-600 text-white rounded-md text-[11px] font-semibold hover:bg-indigo-700 transition-colors cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>
@@ -957,12 +1183,14 @@ const UserManagement = ({
   users,
   setUsers,
   departments,
-  curriculums
+  curriculums,
+  currentUser
 }: {
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   departments: Department[];
   curriculums: Curriculum[];
+  currentUser?: User;
 }) => {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [editingRole, setEditingRole] = useState('staff');
@@ -971,6 +1199,46 @@ const UserManagement = ({
   const [editingName, setEditingName] = useState('');
   const [editingEmail, setEditingEmail] = useState('');
   const [isNewUser, setIsNewUser] = useState(false);
+
+  // Filter & Search & Sort states
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<'name' | 'email' | 'department' | 'role'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const isSuperAdmin = currentUser?.role === 'super_admin';
+  const isAdmin = currentUser?.role === 'admin';
+
+  // Role below admin: instructor, staff (cannot edit super_admin or admin)
+  const isRoleBelowAdmin = (role?: string) => role === 'instructor' || role === 'staff';
+
+  const canEditUser = (targetUser?: User | null) => {
+    if (!targetUser) return false;
+    if (isSuperAdmin) return true;
+    if (isAdmin) return isRoleBelowAdmin(targetUser.role);
+    return false;
+  };
+
+  const toggleRole = (role: string) => {
+    if (selectedRoles.includes(role)) {
+      setSelectedRoles(selectedRoles.filter(r => r !== role));
+    } else {
+      setSelectedRoles([...selectedRoles, role]);
+    }
+  };
+
+  const handleSelectAllRoles = () => {
+    setSelectedRoles(['super_admin', 'admin', 'instructor', 'staff']);
+  };
+
+  const handleClearRoles = () => {
+    setSelectedRoles([]);
+  };
+
+  const clearAllFilters = () => {
+    setSelectedRoles([]);
+    setSearchQuery('');
+  };
 
   const handleEmailChange = (email: string) => {
     setEditingEmail(email);
@@ -993,6 +1261,9 @@ const UserManagement = ({
 
   const openUserModal = (user: any = null) => {
     if (user) {
+      if (!canEditUser(user)) {
+        return; // Admin cannot edit users that are admin or super_admin
+      }
       setSelectedUser(user);
       setEditingName(user.name);
       setEditingEmail(user.email);
@@ -1001,10 +1272,11 @@ const UserManagement = ({
       setEditingCurriculum(user.curriculum || '');
       setIsNewUser(false);
     } else {
-      setSelectedUser({ name: '', email: '', role: 'staff', department: '', curriculum: '', isNew: true });
+      const defaultRole = isAdmin ? 'instructor' : 'staff';
+      setSelectedUser({ name: '', email: '', role: defaultRole, department: '', curriculum: '', isNew: true });
       setEditingName('');
       setEditingEmail('');
-      setEditingRole('staff');
+      setEditingRole(defaultRole);
       setEditingDepartment(departments[0]?.name || '');
       setEditingCurriculum('');
       setIsNewUser(true);
@@ -1012,12 +1284,17 @@ const UserManagement = ({
   };
 
   const handleSaveUser = () => {
+    let finalRole = editingRole;
+    if (isAdmin && !isRoleBelowAdmin(finalRole)) {
+      finalRole = 'instructor';
+    }
+
     if (isNewUser) {
       const newUser: User = {
         id: Date.now(),
         name: editingName || editingEmail.split('@')[0] || 'New User',
         email: editingEmail || 'user@company.com',
-        role: editingRole,
+        role: finalRole,
         department: editingDepartment,
         curriculum: editingCurriculum
       };
@@ -1027,7 +1304,7 @@ const UserManagement = ({
         ...u,
         name: editingName,
         email: editingEmail,
-        role: editingRole,
+        role: finalRole,
         department: editingDepartment,
         curriculum: editingCurriculum
       } : u));
@@ -1036,16 +1313,65 @@ const UserManagement = ({
   };
 
   const handleDeleteUser = () => {
-    if (selectedUser && !isNewUser) {
+    if (selectedUser && !isNewUser && canEditUser(selectedUser)) {
       setUsers(users.filter(u => u.id !== selectedUser.id));
     }
     setSelectedUser(null);
   };
 
+  // Filtered & Sorted users
+  const filteredUsers = users.filter(user => {
+    const matchesRole = selectedRoles.length === 0 || selectedRoles.includes(user.role);
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q || (
+      user.name.toLowerCase().includes(q) ||
+      user.email.toLowerCase().includes(q) ||
+      (user.department || '').toLowerCase().includes(q) ||
+      (user.curriculum || '').toLowerCase().includes(q) ||
+      user.role.toLowerCase().includes(q)
+    );
+    return matchesRole && matchesSearch;
+  });
+
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    let aVal = '';
+    let bVal = '';
+    if (sortField === 'name') {
+      aVal = a.name.toLowerCase();
+      bVal = b.name.toLowerCase();
+    } else if (sortField === 'email') {
+      aVal = a.email.toLowerCase();
+      bVal = b.email.toLowerCase();
+    } else if (sortField === 'department') {
+      aVal = (a.department || '').toLowerCase();
+      bVal = (b.department || '').toLowerCase();
+    } else if (sortField === 'role') {
+      aVal = a.role.toLowerCase();
+      bVal = b.role.toLowerCase();
+    }
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (field: 'name' | 'email' | 'department' | 'role') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Manage system users, affiliations, and permission levels.
+          </p>
+        </div>
         <button 
           onClick={() => openUserModal()} 
           className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm transition-colors shadow-sm cursor-pointer"
@@ -1054,42 +1380,183 @@ const UserManagement = ({
         </button>
       </div>
 
+      {/* Admin Scope Notice Banner */}
+      {isAdmin && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-900">
+          <div className="flex items-center gap-2.5">
+            <Info size={18} className="text-blue-600 shrink-0" />
+            <span>
+              <strong>Admin Permissions:</strong> You can create and edit users with roles below Admin (<strong>Instructor</strong> and <strong>Staff</strong>). Super Admin and Admin accounts are view-only.
+            </span>
+          </div>
+          <span className="bg-blue-100 text-blue-800 font-semibold px-2.5 py-0.5 rounded-full text-[10px] shrink-0 border border-blue-200 uppercase tracking-wider">
+            Role Below Admin Only
+          </span>
+        </div>
+      )}
+
+      {/* Search & Role Filter Bar */}
+      <div className="mb-4 bg-white p-3 rounded-xl border border-gray-200 shadow-2xs space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search user by name, email, affiliation, or role..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-gray-50 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-colors"
+            />
+          </div>
+          <div className="text-xs text-gray-500 px-2 whitespace-nowrap">
+            Showing <span className="font-semibold text-gray-900">{sortedUsers.length}</span> of <span className="font-semibold text-gray-900">{users.length}</span> users
+          </div>
+        </div>
+
+        {/* Active Filter Pills */}
+        {(selectedRoles.length > 0 || searchQuery) && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 text-xs">
+            <span className="text-gray-500 font-medium">Active filters:</span>
+            {selectedRoles.length > 0 && (
+              <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                Roles: {selectedRoles.map(r => r.replace('_', ' ').toUpperCase()).join(', ')}
+                <button onClick={handleClearRoles} className="hover:text-indigo-900 cursor-pointer ml-0.5"><X size={12} /></button>
+              </span>
+            )}
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded-full font-medium">
+                Search: "{searchQuery}"
+                <button onClick={() => setSearchQuery('')} className="hover:text-gray-900 cursor-pointer ml-0.5"><X size={12} /></button>
+              </span>
+            )}
+            <button
+              onClick={clearAllFilters}
+              className="text-indigo-600 hover:text-indigo-800 font-semibold underline ml-1 cursor-pointer flex items-center gap-1"
+            >
+              <RotateCcw size={11} /> Clear all
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Affiliation</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+              <th 
+                onClick={() => handleSort('name')}
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Name
+                  {sortField === 'name' ? (
+                    sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                  ) : (
+                    <ArrowUpDown size={12} className="text-gray-400" />
+                  )}
+                </div>
+              </th>
+              <th 
+                onClick={() => handleSort('email')}
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Email
+                  {sortField === 'email' ? (
+                    sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                  ) : (
+                    <ArrowUpDown size={12} className="text-gray-400" />
+                  )}
+                </div>
+              </th>
+              <th 
+                onClick={() => handleSort('department')}
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Affiliation
+                  {sortField === 'department' ? (
+                    sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-600" /> : <ChevronDown size={14} className="text-indigo-600" />
+                  ) : (
+                    <ArrowUpDown size={12} className="text-gray-400" />
+                  )}
+                </div>
+              </th>
+              {/* Role Column with Column Filter & Sorting */}
+              <RoleHeaderFilter
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={() => handleSort('role')}
+                selectedRoles={selectedRoles}
+                onToggleRole={toggleRole}
+                onSelectAllRoles={handleSelectAllRoles}
+                onClearRoles={handleClearRoles}
+              />
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <div className="max-w-[160px] truncate" title={user.department || ''}>
-                    {user.department || '-'}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <Badge variant={user.role}>{user.role.replace('_', ' ').toUpperCase()}</Badge>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button 
-                    type="button"
-                    onClick={() => openUserModal(user)}
-                    className="inline-flex items-center justify-center p-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
-                    title="Edit User"
+            {sortedUsers.map((user) => {
+              const editable = canEditUser(user);
+
+              return (
+                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <span>{user.name}</span>
+                      {!editable && isAdmin && (
+                        <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 px-1.5 py-0.2 rounded" title="Admins cannot edit this role">
+                          Protected
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div className="max-w-[160px] truncate" title={user.department || ''}>
+                      {user.department || '-'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <Badge variant={user.role}>{user.role.replace('_', ' ').toUpperCase()}</Badge>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    {editable ? (
+                      <button 
+                        type="button"
+                        onClick={() => openUserModal(user)}
+                        className="inline-flex items-center justify-center p-1.5 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors cursor-pointer"
+                        title="Edit User"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                    ) : (
+                      <span 
+                        className="inline-flex items-center justify-center p-1.5 text-gray-400 bg-gray-100 border border-gray-200 rounded-md cursor-not-allowed select-none"
+                        title={`Admins cannot edit ${user.role === 'super_admin' ? 'Super Admin' : 'Admin'} users`}
+                      >
+                        <Lock size={13} className="text-gray-400" />
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {sortedUsers.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-gray-500 italic text-sm">
+                  No users found matching your search or role filter.
+                  <button
+                    onClick={clearAllFilters}
+                    className="block mx-auto mt-2 text-indigo-600 font-semibold underline cursor-pointer"
                   >
-                    <Edit2 size={13} />
+                    Clear filters
                   </button>
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -1097,10 +1564,10 @@ const UserManagement = ({
       <Modal 
         isOpen={!!selectedUser} 
         onClose={() => setSelectedUser(null)} 
-        title={isNewUser ? "Add New User" : "Edit User"}
+        title={isNewUser ? "Add New User" : `Edit User: ${selectedUser?.name || ''}`}
         footer={
           <>
-            {!isNewUser && (
+            {!isNewUser && selectedUser && canEditUser(selectedUser) && (
               <button 
                 type="button"
                 onClick={handleDeleteUser} 
@@ -1109,10 +1576,10 @@ const UserManagement = ({
                 <Trash2 size={15} className="mr-1.5" /> Delete User
               </button>
             )}
-            <button onClick={() => setSelectedUser(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            <button onClick={() => setSelectedUser(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
               Cancel
             </button>
-            <button onClick={handleSaveUser} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+            <button onClick={handleSaveUser} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors cursor-pointer">
               {isNewUser ? "Create User" : "Save Changes"}
             </button>
           </>
@@ -1198,11 +1665,25 @@ const UserManagement = ({
                 onChange={(e) => setEditingRole(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               >
-                <option value="super_admin">Super Admin</option>
-                <option value="admin">Admin</option>
-                <option value="instructor">Instructor</option>
-                <option value="staff">Staff</option>
+                {isAdmin ? (
+                  <>
+                    <option value="instructor">Instructor</option>
+                    <option value="staff">Staff</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="super_admin">Super Admin</option>
+                    <option value="admin">Admin</option>
+                    <option value="instructor">Instructor</option>
+                    <option value="staff">Staff</option>
+                  </>
+                )}
               </select>
+              {isAdmin && (
+                <p className="text-xs text-gray-400 mt-1">
+                  As an Admin, you can only set or edit roles below Admin (Instructor or Staff).
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -4013,6 +4494,15 @@ const CourseList = ({
   const [selectedErrorFile, setSelectedErrorFile] = useState<{ course: any; file: CourseFile } | null>(null);
   const [expandedErrorIds, setExpandedErrorIds] = useState<string[]>([]);
   
+  // Toast & Batch download modal states
+  const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [isDownloadPackageModalOpen, setIsDownloadPackageModalOpen] = useState(false);
+
+  const showToastMsg = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToastMsg({ text, type });
+    setTimeout(() => setToastMsg(null), 3500);
+  };
+
   // Year selector - single choice, defaults to latest year (no 'all' choice)
   const [selectedYear, setSelectedYear] = useState('2024');
 
@@ -4187,12 +4677,63 @@ const CourseList = ({
     }
   };
 
+  // List of courses with generated files in current view
+  const availableGeneratedCourses = sortedCourses
+    .map(course => ({ course, file: getCourseFile(course.id) }))
+    .filter((item): item is { course: any; file: CourseFile } => item.file?.status === 'generated');
+
+  const triggerBrowserDownload = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadAllCoursePortfolios = () => {
+    if (availableGeneratedCourses.length === 0) {
+      showToastMsg('No generated course portfolio PDFs available to download for current filters.', 'info');
+      return;
+    }
+
+    const zipFileName = `ABET_Course_Portfolios_${selectedYear}.zip`;
+    const manifestContent = [
+      `=============================================================`,
+      `ABET COURSE PORTFOLIOS ARCHIVE - ACADEMIC YEAR ${selectedYear}`,
+      `Generated: ${new Date().toLocaleString()}`,
+      `Total Course Portfolios: ${availableGeneratedCourses.length}`,
+      `=============================================================`,
+      ``,
+      `INCLUDED COURSE PORTFOLIO DOSSIERS:`,
+      ...availableGeneratedCourses.map((item, idx) => 
+        `${idx + 1}. [${item.course.id}] ${item.course.name}\n` +
+        `   - Curriculum: ${item.course.curriculum}\n` +
+        `   - Semester: ${item.course.semester || '1'}\n` +
+        `   - File: ${item.file.name}\n` +
+        `   - Last Processed: ${item.file.time}\n`
+      )
+    ].join('\n');
+
+    triggerBrowserDownload(zipFileName, manifestContent);
+    showToastMsg(`Downloading all ${availableGeneratedCourses.length} course portfolio PDFs (${zipFileName})...`, 'success');
+  };
+
+  const handleDownloadSingleFile = (file: CourseFile, course: any) => {
+    const dummyContent = `ABET COURSE PORTFOLIO DOSSIER\nCourse: ${course.id} - ${course.name}\nAcademic Year: ${file.year}\nSemester: ${file.semester}\nGenerated At: ${file.time}\nFile: ${file.name}\n`;
+    triggerBrowserDownload(file.name, dummyContent);
+    showToastMsg(`Downloading ${file.name}...`, 'success');
+  };
+
   return (
     <div className="p-6 space-y-5 w-full">
       {/* Top Header: Title on Row 1, Filters on Row 2 under Title */}
       <div className="space-y-4">
-        {/* Row 1: Title */}
-        <div className="flex items-center justify-between">
+        {/* Row 1: Title & Download All Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Course Portfolios</h1>
             {currentUser && !['super_admin', 'admin'].includes(currentUser.role) && (
@@ -4201,6 +4742,39 @@ const CourseList = ({
                   ? 'Showing courses from your 2 affiliated departments and 1 curriculum.' 
                   : 'Showing courses from your department across 2 curriculums.'}
               </p>
+            )}
+          </div>
+
+          {/* Download All Course Port PDF Action */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadAllCoursePortfolios}
+              disabled={availableGeneratedCourses.length === 0}
+              className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg shadow-sm transition-all cursor-pointer"
+              title={availableGeneratedCourses.length > 0 
+                ? `Download all ${availableGeneratedCourses.length} course portfolio PDFs for ${selectedYear}`
+                : `No generated course portfolio PDFs to download for ${selectedYear}`
+              }
+            >
+              <Download size={16} className="mr-2 shrink-0" />
+              <span>Download all course port PDF</span>
+              {availableGeneratedCourses.length > 0 && (
+                <span className="ml-2 bg-indigo-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                  {availableGeneratedCourses.length}
+                </span>
+              )}
+            </button>
+
+            {availableGeneratedCourses.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsDownloadPackageModalOpen(true)}
+                className="p-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors cursor-pointer"
+                title="View Course Portfolio PDF Package Details"
+              >
+                <Eye size={16} />
+              </button>
             )}
           </div>
         </div>
@@ -4440,8 +5014,10 @@ const CourseList = ({
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                       {file?.status === 'generated' && (
                         <button 
+                          type="button"
+                          onClick={() => handleDownloadSingleFile(file, course)}
                           className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
-                          title="Download PDF"
+                          title={`Download ${file.name}`}
                         >
                           <Download size={14} />
                         </button>
@@ -4713,6 +5289,108 @@ const CourseList = ({
           </div>
         </div>
       </Modal>
+
+      {/* Download Package Details Modal */}
+      <Modal
+        isOpen={isDownloadPackageModalOpen}
+        onClose={() => setIsDownloadPackageModalOpen(false)}
+        title="Course Portfolio Package (PDF)"
+        maxWidth="max-w-2xl"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsDownloadPackageModalOpen(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                handleDownloadAllCoursePortfolios();
+                setIsDownloadPackageModalOpen(false);
+              }}
+              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
+            >
+              <Download size={16} className="mr-2" /> Download All (ZIP)
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-indigo-100 text-indigo-700 rounded-lg shrink-0">
+                <FileText size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-indigo-900">
+                  ABET Course Portfolio Package — Academic Year {selectedYear}
+                </h4>
+                <p className="text-xs text-indigo-700 mt-1">
+                  Ready to download <strong>{availableGeneratedCourses.length}</strong> official Course Portfolio dossier(s) as a zip archive.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex justify-between items-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <span>Included Course Portfolios</span>
+              <span>{availableGeneratedCourses.length} Files</span>
+            </div>
+            <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+              {availableGeneratedCourses.map(({ course, file }) => (
+                <div key={course.id} className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                  <div className="min-w-0 flex-1 pr-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+                        {course.id}
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900 truncate">
+                        {course.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                      <span className="font-mono text-gray-700">{file.name}</span>
+                      <span>•</span>
+                      <span>Sem {course.semester || '1'}</span>
+                      <span>•</span>
+                      <span>{file.time}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadSingleFile(file, course)}
+                    className="flex items-center gap-1 text-xs text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-2.5 py-1.5 rounded-lg transition-colors font-medium shrink-0 cursor-pointer"
+                    title={`Download ${file.name}`}
+                  >
+                    <Download size={13} />
+                    <span>Download</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium ${
+            toastMsg.type === 'error'
+              ? 'bg-red-50 text-red-800 border-red-200'
+              : toastMsg.type === 'info'
+              ? 'bg-blue-50 text-blue-800 border-blue-200'
+              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          }`}>
+            <CheckCircle2 size={18} className={toastMsg.type === 'error' ? 'text-red-600' : toastMsg.type === 'info' ? 'text-blue-600' : 'text-emerald-600'} />
+            <span>{toastMsg.text}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -4723,6 +5401,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User>(MOCK_USERS[0]);
   const [activeTab, setActiveTab] = useState('courses'); // 'courses', 'course_management', 'cover_management', 'users', 'departments', 'curriculums'
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [users, setUsers] = useState<User[]>(MOCK_USERS);
   const [departments, setDepartments] = useState<Department[]>(INITIAL_DEPARTMENTS);
@@ -4774,113 +5453,194 @@ export default function App() {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b border-gray-200">
-          <BookOpen className="h-6 w-6 text-indigo-600 mr-2" />
-          <span className="text-lg font-bold text-gray-900">ABET</span>
-        </div>
+      <div className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out shrink-0 select-none`}>
+        {isSidebarCollapsed ? (
+          <div className="h-16 flex items-center justify-center border-b border-gray-200 px-2">
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(false)}
+              className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer flex items-center justify-center group relative"
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+            >
+              <BookOpen className="h-6 w-6 text-indigo-600 transition-transform group-hover:scale-95" />
+              <span className="absolute -bottom-1 -right-1 bg-white border border-gray-200 rounded-full p-0.5 shadow-xs text-gray-500 group-hover:text-indigo-600 group-hover:border-indigo-300">
+                <ChevronRight size={12} />
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="h-16 flex items-center justify-between px-5 border-b border-gray-200">
+            <div className="flex items-center min-w-0">
+              <BookOpen className="h-6 w-6 text-indigo-600 mr-2.5 shrink-0" />
+              <span className="text-lg font-bold text-gray-900 tracking-tight truncate">ABET</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(true)}
+              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+            >
+              <ChevronLeft size={18} />
+            </button>
+          </div>
+        )}
         
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        <nav className={`flex-1 ${isSidebarCollapsed ? 'px-2 py-4' : 'px-4 py-6'} space-y-2 overflow-y-auto`}>
           {/* Course Portfolios: Visible to ALL (Instructor, Staff, Admin, Super Admin) */}
           <button
+            type="button"
             onClick={() => setActiveTab('courses')}
-            className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'courses' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+            className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'courses' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+            title={isSidebarCollapsed ? "Course Portfolios" : undefined}
           >
-            <BookOpen size={18} className="mr-3" /> Course Portfolios
+            <BookOpen size={isSidebarCollapsed ? 20 : 18} className={isSidebarCollapsed ? 'shrink-0' : 'mr-3 shrink-0'} />
+            {!isSidebarCollapsed && <span className="truncate">Course Portfolios</span>}
           </button>
           
-          {/* Admin & Super Admin: Course Management & Cover */}
+          {/* Admin & Super Admin: Course Management, Cover, and Users */}
           {['super_admin', 'admin'].includes(currentUser.role) && (
             <>
               <button
+                type="button"
                 onClick={() => setActiveTab('course_management')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'course_management' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'course_management' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                title={isSidebarCollapsed ? "Course Management" : undefined}
               >
-                <BookMarked size={18} className="mr-3" /> Course Management
+                <BookMarked size={isSidebarCollapsed ? 20 : 18} className={isSidebarCollapsed ? 'shrink-0' : 'mr-3 shrink-0'} />
+                {!isSidebarCollapsed && <span className="truncate">Course Management</span>}
               </button>
 
               <button
+                type="button"
                 onClick={() => setActiveTab('cover_management')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'cover_management' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'cover_management' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                title={isSidebarCollapsed ? "Cover" : undefined}
               >
-                <Layers size={18} className="mr-3" /> Cover
+                <Layers size={isSidebarCollapsed ? 20 : 18} className={isSidebarCollapsed ? 'shrink-0' : 'mr-3 shrink-0'} />
+                {!isSidebarCollapsed && <span className="truncate">Cover</span>}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('users')}
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'users' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                title={isSidebarCollapsed ? "Users" : undefined}
+              >
+                <Users size={isSidebarCollapsed ? 20 : 18} className={isSidebarCollapsed ? 'shrink-0' : 'mr-3 shrink-0'} />
+                {!isSidebarCollapsed && <span className="truncate">Users</span>}
               </button>
             </>
           )}
 
-          {/* Super Admin only: Users, Departments, Curriculums */}
+          {/* Super Admin only: Departments, Curriculums */}
           {currentUser.role === 'super_admin' && (
             <>
               <button
-                onClick={() => setActiveTab('users')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'users' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
-              >
-                <Users size={18} className="mr-3" /> Users
-              </button>
-
-              <button
+                type="button"
                 onClick={() => setActiveTab('departments')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'departments' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'departments' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                title={isSidebarCollapsed ? "Departments" : undefined}
               >
-                <Building2 size={18} className="mr-3" /> Departments
+                <Building2 size={isSidebarCollapsed ? 20 : 18} className={isSidebarCollapsed ? 'shrink-0' : 'mr-3 shrink-0'} />
+                {!isSidebarCollapsed && <span className="truncate">Departments</span>}
               </button>
 
               <button
+                type="button"
                 onClick={() => setActiveTab('curriculums')}
-                className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'curriculums' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'curriculums' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                title={isSidebarCollapsed ? "Curriculums" : undefined}
               >
-                <GraduationCap size={18} className="mr-3" /> Curriculums
+                <GraduationCap size={isSidebarCollapsed ? 20 : 18} className={isSidebarCollapsed ? 'shrink-0' : 'mr-3 shrink-0'} />
+                {!isSidebarCollapsed && <span className="truncate">Curriculums</span>}
               </button>
             </>
           )}
         </nav>
 
         {/* Theme Settings for Authenticated Users */}
-        <div className="px-4 py-3 border-t border-gray-200">
-          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2">
-            <Moon size={16} className="text-gray-500 mr-2 shrink-0" />
-            <select className="w-full bg-transparent text-sm text-gray-700 outline-none cursor-pointer">
-              <option value="light">Light Mode</option>
-              <option value="dark">Dark Mode</option>
-              <option value="system">System Default</option>
-            </select>
-          </div>
+        <div className={`border-t border-gray-200 ${isSidebarCollapsed ? 'p-3 flex justify-center' : 'px-4 py-3'}`}>
+          {isSidebarCollapsed ? (
+            <button
+              type="button"
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              title="Theme: Light Mode"
+            >
+              <Moon size={18} />
+            </button>
+          ) : (
+            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2">
+              <Moon size={16} className="text-gray-500 mr-2 shrink-0" />
+              <select className="w-full bg-transparent text-sm text-gray-700 outline-none cursor-pointer">
+                <option value="light">Light Mode</option>
+                <option value="dark">Dark Mode</option>
+                <option value="system">System Default</option>
+              </select>
+            </div>
+          )}
         </div>
 
         {/* User Profile & Role Switcher */}
-        <div className="p-4 border-t border-gray-200 space-y-3">
-          <div className="flex items-center px-1">
-            <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-sm mr-3 shrink-0 ${
-              currentUser.role === 'super_admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
-              currentUser.role === 'admin' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-              currentUser.role === 'instructor' ? 'bg-teal-100 text-teal-700 border border-teal-200' :
-              'bg-slate-100 text-slate-700 border border-slate-200'
-            }`}>
-              {currentUser.name.charAt(0)}
-            </div>
-            <div className="overflow-hidden flex-1 min-w-0">
-              <p className="text-sm font-bold text-gray-900 truncate">{currentUser.name}</p>
-              <div className="mt-0.5">
-                <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-semibold uppercase tracking-wider ${
-                  currentUser.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
-                  currentUser.role === 'admin' ? 'bg-blue-100 text-blue-800' :
-                  currentUser.role === 'instructor' ? 'bg-teal-100 text-teal-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {currentUser.role.replace('_', ' ')}
-                </span>
+        <div className={`border-t border-gray-200 ${isSidebarCollapsed ? 'p-3 flex flex-col items-center gap-3' : 'p-4 space-y-3'}`}>
+          {isSidebarCollapsed ? (
+            <>
+              <div 
+                className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm cursor-default shadow-xs ${
+                  currentUser.role === 'super_admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                  currentUser.role === 'admin' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                  currentUser.role === 'instructor' ? 'bg-teal-100 text-teal-700 border border-teal-200' :
+                  'bg-slate-100 text-slate-700 border border-slate-200'
+                }`}
+                title={`${currentUser.name} (${currentUser.role.replace('_', ' ')})`}
+              >
+                {currentUser.name.charAt(0)}
               </div>
-            </div>
-          </div>
+              <button 
+                type="button"
+                onClick={() => setIsAuthenticated(false)}
+                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                title="Sign Out"
+              >
+                <LogOut size={18} />
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center px-1">
+                <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-sm mr-3 shrink-0 ${
+                  currentUser.role === 'super_admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                  currentUser.role === 'admin' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                  currentUser.role === 'instructor' ? 'bg-teal-100 text-teal-700 border border-teal-200' :
+                  'bg-slate-100 text-slate-700 border border-slate-200'
+                }`}>
+                  {currentUser.name.charAt(0)}
+                </div>
+                <div className="overflow-hidden flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate">{currentUser.name}</p>
+                  <div className="mt-0.5">
+                    <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-semibold uppercase tracking-wider ${
+                      currentUser.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
+                      currentUser.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                      currentUser.role === 'instructor' ? 'bg-teal-100 text-teal-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {currentUser.role.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-
-          <button 
-            type="button"
-            onClick={() => setIsAuthenticated(false)}
-            className="w-full flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors cursor-pointer"
-          >
-            <LogOut size={16} className="mr-2" /> Sign Out
-          </button>
+              <button 
+                type="button"
+                onClick={() => setIsAuthenticated(false)}
+                className="w-full flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                <LogOut size={16} className="mr-2" /> Sign Out
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -4914,12 +5674,13 @@ export default function App() {
             courses={courses} 
           />
         )}
-        {activeTab === 'users' && currentUser.role === 'super_admin' && (
+        {activeTab === 'users' && ['super_admin', 'admin'].includes(currentUser.role) && (
           <UserManagement 
             users={users} 
             setUsers={setUsers} 
             departments={departments} 
             curriculums={curriculums} 
+            currentUser={currentUser}
           />
         )}
         {activeTab === 'departments' && currentUser.role === 'super_admin' && (
