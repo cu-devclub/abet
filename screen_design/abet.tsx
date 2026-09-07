@@ -2,16 +2,18 @@ import React, { useState } from 'react';
 import { 
   Users, BookOpen, LogOut, Plus, X, Edit2, 
   Trash2, Download, UploadCloud, AlertCircle, CheckCircle2,
-  Globe, Moon, Building2, GraduationCap, BookMarked,
+  Globe, Moon, BookMarked,
   Search, ArrowUpDown, ChevronUp, ChevronDown, Filter, RotateCcw,
-  ChevronRight, AlertTriangle, FileText, Eye, RefreshCw, Layers, Check,
-  LayoutGrid, List, Info, ShieldCheck, FileCheck
+  ChevronRight, AlertTriangle, FileText, Eye, Layers,
+  Info, ShieldCheck
 } from 'lucide-react';
 
 // --- MOCK DATA ---
 const INITIAL_DEPARTMENTS = [
-  { id: '1', name: 'Mathematics and Computer Science', code: 'MCS' },
-  { id: '2', name: 'Electrical Engineering', code: 'EE' },
+  { id: '1', name: 'Mathematics and Computer Science', code: 'MATH-CS' },
+  { id: '2', name: 'Chemistry', code: 'CHEM' },
+  { id: '3', name: 'Physics', code: 'PHYS' },
+  { id: '4', name: 'Biology', code: 'BIO' },
 ];
 
 const INITIAL_CURRICULUMS = [
@@ -28,38 +30,53 @@ const INITIAL_CURRICULUMS = [
     id: '2', 
     name: 'Mathematics', 
     code: 'MATH', 
-    departmentId: '1',
-    coverFile: 'MATH_Curriculum_Cover.pdf',
-    coverSize: '185 KB',
-    coverUpdatedAt: '12/09/2024 11:20'
+    departmentId: '1', 
+    coverFile: 'MATH_Curriculum_Cover_2024.pdf', 
+    coverSize: '185 KB', 
+    coverUpdatedAt: '12/09/2024 11:20' 
   },
   { 
     id: '3', 
-    name: 'Electrical Engineering', 
-    code: 'EE', 
-    departmentId: '2' 
+    name: 'Chemistry', 
+    code: 'CHEM', 
+    departmentId: '2', 
+    coverFile: 'CHEM_Curriculum_Cover_2024.pdf', 
+    coverSize: '210 KB', 
+    coverUpdatedAt: '10/10/2024 09:15' 
+  },
+  { 
+    id: '4', 
+    name: 'Physics', 
+    code: 'PHYS', 
+    departmentId: '3', 
+    coverFile: 'PHYS_Curriculum_Cover_2024.pdf', 
+    coverSize: '195 KB', 
+    coverUpdatedAt: '08/10/2024 14:00' 
   }
 ];
 
 const MOCK_COURSES = [
-  { id: 'CS101', name: 'Introduction to Computer Science', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
-  { id: 'MATH205', name: 'Calculus and Linear Algebra', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: '2024', semester: '1' },
-  { id: 'CS102', name: 'Data Structures and Algorithms', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '2' },
-  { id: 'EE101', name: 'Circuit Theory I', department: 'Electrical Engineering', curriculum: 'Electrical Engineering', year: '2024', semester: '2' }
+  { id: '2301170', name: 'Computer Programming', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
+  { id: '2301107', name: 'Calculus I', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: '2024', semester: '1' },
+  { id: '2301263', name: 'Data Structures and Fundamental Algorithms', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '2' },
+  { id: '2301365', name: 'Algorithm Design and Analysis', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
+  { id: '2301217', name: 'Linear Algebra', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: '2024', semester: '1' },
+  { id: '2302101', name: 'General Chemistry I', department: 'Chemistry', curriculum: 'Chemistry', year: '2024', semester: '1' },
+  { id: '2304101', name: 'General Physics I', department: 'Physics', curriculum: 'Physics', year: '2024', semester: '2' }
 ];
 
 const MOCK_USERS = [
-  { id: 1, name: 'Alice Smith', email: 'alice.admin@company.com', role: 'super_admin', department: 'Mathematics and Computer Science', curriculum: 'Computer Science' },
-  { id: 2, name: 'Bob Johnson', email: 'bob.admin@company.com', role: 'admin', department: 'Mathematics and Computer Science', curriculum: 'Mathematics' },
-  { id: 3, name: 'Charlie Davis', email: 'charlie.staff@company.com', role: 'staff', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', courses: [{ id: 'CS101', access: 'edit' }, { id: 'MATH205', access: 'view' }] },
-  { id: 4, name: 'Diana Prince', email: 'diana.instructor@company.com', role: 'instructor', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', courses: [{ id: 'CS101', access: 'edit' }] },
+  { id: 1, name: 'Prof. Dr. Somchai Prasert', email: 'somchai.p@chula.ac.th', role: 'super_admin', department: 'Mathematics and Computer Science', curriculum: 'Computer Science' },
+  { id: 2, name: 'Assoc. Prof. Dr. Wichai Techasit', email: 'wichai.t@chula.ac.th', role: 'admin', department: 'Mathematics and Computer Science', curriculum: 'Mathematics' },
+  { id: 3, name: 'Suda Kittisuk', email: 'suda.k@chula.ac.th', role: 'staff', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', courses: [{ id: '2301170', access: 'edit' }, { id: '2301107', access: 'view' }] },
+  { id: 4, name: 'Asst. Prof. Dr. Kanya Wattana', email: 'kanya.w@chula.ac.th', role: 'instructor', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', courses: [{ id: '2301170', access: 'edit' }, { id: '2301107', access: 'edit' }] },
 ];
 
 const MOCK_FILES = [
   { 
     id: 1, 
-    courseId: 'CS101', 
-    name: 'CS101_Summary_Final.pdf', 
+    courseId: '2301170', 
+    name: '2301170_Summary_Final.pdf', 
     year: '2024', 
     semester: '1', 
     time: '14/10/2024 15:30', 
@@ -67,8 +84,8 @@ const MOCK_FILES = [
   },
   { 
     id: 2, 
-    courseId: 'MATH205', 
-    name: 'MATH205_Grades_Raw.zip', 
+    courseId: '2301107', 
+    name: '2301107_Grades_Raw.zip', 
     year: '2024', 
     semester: '1', 
     time: '15/01/2024 09:15', 
@@ -76,8 +93,8 @@ const MOCK_FILES = [
   },
   { 
     id: 3, 
-    courseId: 'CS102', 
-    name: 'CS102_Grades_Raw.zip', 
+    courseId: '2301263', 
+    name: '2301263_Grades_Raw.zip', 
     year: '2024', 
     semester: '2', 
     time: '15/10/2024 16:45', 
@@ -88,7 +105,7 @@ const MOCK_FILES = [
         code: 'ERR_SCORE_OUT_OF_BOUNDS',
         stage: 'Validation',
         title: 'Score Value Exceeds Maximum (Row 42)',
-        description: 'Student score exceeds maximum allowable points (100). Found value "105.5" for Student ID 64010482 in Quiz 2 column.',
+        description: 'Student score exceeds maximum allowable points (100). Found value "105.5" for Student ID 6631048223 in Quiz 2 column.',
         location: 'Sheet "Midterm_Scores", Cell D42',
         suggestedFix: 'Verify student score sheet and correct the entered mark to be within valid range [0, 100].'
       },
@@ -106,7 +123,7 @@ const MOCK_FILES = [
         code: 'ERR_RUBRIC_FILE_MISSING',
         stage: 'Score Calculation',
         title: 'Missing Evaluation Rubric Spreadsheet',
-        description: 'Referenced rubric file "CS102_Rubric_ProgAssignment1.xlsx" is missing from the uploaded ZIP archive or is corrupt.',
+        description: 'Referenced rubric file "2301263_Rubric_ProgAssignment1.xlsx" is missing from the uploaded ZIP archive or is corrupt.',
         location: 'Archive root /rubrics/',
         suggestedFix: 'Re-upload the archive including all required rubric definition spreadsheets.'
       }
@@ -613,7 +630,7 @@ const CourseManagement = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Left: Title + Year Dropdown */}
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Courses</h1>
           <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-sm px-3 py-1.5 ml-1">
             <span className="text-xs font-semibold text-gray-500 mr-2 uppercase tracking-wide">Year:</span>
             <select 
@@ -1260,8 +1277,6 @@ const CoverManagement = () => {
   };
 
   const selectedWithCovers = curriculums.filter(c => selectedCurrIds.includes(c.id) && !!c.coverFile);
-  const activeTargetCurr = curriculums.find(c => c.id === modalCurrId);
-  const activeTargetCourses = activeTargetCurr ? getCoursesForCurriculum(activeTargetCurr.name) : [];
 
   return (
     <div className="p-6 space-y-6 w-full">
@@ -1296,7 +1311,7 @@ const CoverManagement = () => {
       {/* Top Header: Title + Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Cover Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Cover Page</h1>
           <p className="text-sm text-gray-500 mt-1">
             Manage standard course cover PDFs by curriculum. All courses under the same curriculum share the same cover.
           </p>
@@ -1874,7 +1889,7 @@ const CoverManagement = () => {
                     ABET
                   </div>
                   <h2 className="text-xs font-bold tracking-wider text-gray-900 uppercase">
-                    FACULTY OF ENGINEERING & INFORMATION TECHNOLOGY
+                    FACULTY OF SCIENCE, CHULALONGKORN UNIVERSITY
                   </h2>
                   <p className="text-[11px] font-semibold text-indigo-950 uppercase">
                     {departments.find(d => d.id === previewCurr.departmentId)?.name || 'DEPARTMENT'}
@@ -2564,13 +2579,13 @@ export default function App() {
                 onClick={() => setActiveTab('course_management')}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'course_management' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                <BookMarked size={18} className="mr-3" /> Course Management
+                <BookMarked size={18} className="mr-3" /> Courses
               </button>
               <button
                 onClick={() => setActiveTab('cover_management')}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'cover_management' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                <Layers size={18} className="mr-3" /> Cover
+                <Layers size={18} className="mr-3" /> Cover Page
               </button>
               <button
                 onClick={() => setActiveTab('users')}

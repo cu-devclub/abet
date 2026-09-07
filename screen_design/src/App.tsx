@@ -66,8 +66,10 @@ export interface CourseFile {
 }
 
 const INITIAL_DEPARTMENTS: Department[] = [
-  { id: '1', name: 'Mathematics and Computer Science', code: 'MCS' },
-  { id: '2', name: 'Electrical Engineering', code: 'EE' }
+  { id: '1', name: 'Mathematics and Computer Science', code: 'MATH-CS' },
+  { id: '2', name: 'Chemistry', code: 'CHEM' },
+  { id: '3', name: 'Physics', code: 'PHYS' },
+  { id: '4', name: 'Biology', code: 'BIO' }
 ];
 
 const INITIAL_CURRICULUMS: Curriculum[] = [
@@ -84,87 +86,100 @@ const INITIAL_CURRICULUMS: Curriculum[] = [
     id: '2', 
     name: 'Mathematics', 
     code: 'MATH', 
-    departmentId: '1',
-    coverFile: 'MATH_Curriculum_Cover.pdf',
-    coverSize: '185 KB',
-    coverUpdatedAt: '12/09/2024 11:20'
+    departmentId: '1', 
+    coverFile: 'MATH_Curriculum_Cover_2024.pdf', 
+    coverSize: '185 KB', 
+    coverUpdatedAt: '12/09/2024 11:20' 
   },
   { 
     id: '3', 
-    name: 'Electrical Engineering', 
-    code: 'EE', 
-    departmentId: '2' 
+    name: 'Chemistry', 
+    code: 'CHEM', 
+    departmentId: '2', 
+    coverFile: 'CHEM_Curriculum_Cover_2024.pdf', 
+    coverSize: '210 KB', 
+    coverUpdatedAt: '10/10/2024 09:15' 
+  },
+  { 
+    id: '4', 
+    name: 'Physics', 
+    code: 'PHYS', 
+    departmentId: '3', 
+    coverFile: 'PHYS_Curriculum_Cover_2024.pdf', 
+    coverSize: '195 KB', 
+    coverUpdatedAt: '08/10/2024 14:00' 
   }
 ];
 
 // --- MOCK DATA ---
 const MOCK_COURSES = [
-  { id: 'CS101', name: 'Introduction to Computer Science', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
-  { id: 'MATH205', name: 'Calculus and Linear Algebra', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: '2024', semester: '1' },
-  { id: 'CS102', name: 'Data Structures and Algorithms', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '2' },
-  { id: 'CS305', name: 'Software Engineering', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
-  { id: 'EE101', name: 'Circuit Theory I', department: 'Electrical Engineering', curriculum: 'Electrical Engineering', year: '2024', semester: '2' },
-  { id: 'CS204', name: 'Hardware & System Architecture', department: 'Electrical Engineering', curriculum: 'Computer Science', year: '2024', semester: '2' }
+  { id: '2301170', name: 'Computer Programming', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
+  { id: '2301107', name: 'Calculus I', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: '2024', semester: '1' },
+  { id: '2301263', name: 'Data Structures and Fundamental Algorithms', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '2' },
+  { id: '2301365', name: 'Algorithm Design and Analysis', department: 'Mathematics and Computer Science', curriculum: 'Computer Science', year: '2024', semester: '1' },
+  { id: '2301217', name: 'Linear Algebra', department: 'Mathematics and Computer Science', curriculum: 'Mathematics', year: '2024', semester: '1' },
+  { id: '2302101', name: 'General Chemistry I', department: 'Chemistry', curriculum: 'Chemistry', year: '2024', semester: '1' },
+  { id: '2304101', name: 'General Physics I', department: 'Physics', curriculum: 'Physics', year: '2024', semester: '2' }
 ];
 
 const MOCK_USERS: User[] = [
   { 
     id: 1, 
-    name: 'Alice Smith', 
-    email: 'alice.admin@company.com', 
+    name: 'Prof. Dr. Somchai Prasert', 
+    email: 'somchai.p@chula.ac.th', 
     role: 'super_admin', 
     department: 'Mathematics and Computer Science', 
     curriculum: 'Computer Science' 
   },
   { 
     id: 2, 
-    name: 'Bob Johnson', 
-    email: 'bob.admin@company.com', 
+    name: 'Assoc. Prof. Dr. Wichai Techasit', 
+    email: 'wichai.t@chula.ac.th', 
     role: 'admin', 
     department: 'Mathematics and Computer Science', 
     curriculum: 'Mathematics' 
   },
   { 
     id: 3, 
-    name: 'Charlie Davis', 
-    email: 'charlie.staff@company.com', 
+    name: 'Suda Kittisuk', 
+    email: 'suda.k@chula.ac.th', 
     role: 'staff', 
     department: 'Mathematics and Computer Science', 
-    curriculum: 'Computer Science',
-    allowedDepartments: ['Mathematics and Computer Science'], // 1 department for staff
-    allowedCurriculums: ['Computer Science', 'Mathematics'],  // 2 curriculums for staff
-    courses: [{ id: 'CS101', access: 'edit' }, { id: 'MATH205', access: 'view' }, { id: 'CS102', access: 'view' }, { id: 'CS305', access: 'view' }] 
+    curriculum: 'Mathematics',
+    allowedDepartments: ['Mathematics and Computer Science'],
+    allowedCurriculums: ['Mathematics', 'Computer Science'],
+    courses: [{ id: '2301170', access: 'edit' }, { id: '2301107', access: 'view' }, { id: '2301263', access: 'view' }, { id: '2301365', access: 'view' }] 
   },
   { 
     id: 4, 
-    name: 'Diana Prince', 
-    email: 'diana.instructor@company.com', 
+    name: 'Asst. Prof. Dr. Kanya Wattana', 
+    email: 'kanya.w@chula.ac.th', 
     role: 'instructor', 
     department: 'Mathematics and Computer Science', 
-    curriculum: 'Computer Science', 
-    allowedDepartments: ['Mathematics and Computer Science', 'Electrical Engineering'], // 2 departments for instructor
-    allowedCurriculums: ['Computer Science'], // 1 curriculum for instructor
-    courses: [{ id: 'CS101', access: 'edit' }, { id: 'CS102', access: 'edit' }, { id: 'CS305', access: 'edit' }, { id: 'CS204', access: 'edit' }] 
+    curriculum: 'Mathematics', 
+    allowedDepartments: ['Mathematics and Computer Science'],
+    allowedCurriculums: ['Mathematics', 'Computer Science'],
+    courses: [{ id: '2301170', access: 'edit' }, { id: '2301107', access: 'edit' }, { id: '2301263', access: 'edit' }, { id: '2301365', access: 'edit' }] 
   },
   { 
     id: 5, 
-    name: 'Evan Wright', 
-    email: 'evan.qa@company.com', 
+    name: 'Nattapong Srisawat', 
+    email: 'nattapong.s@chula.ac.th', 
     role: 'staff', 
     department: 'Mathematics and Computer Science', 
-    curriculum: 'Computer Science',
+    curriculum: 'Mathematics',
     allowedDepartments: ['Mathematics and Computer Science'],
-    allowedCurriculums: ['Computer Science', 'Mathematics']
+    allowedCurriculums: ['Mathematics', 'Computer Science']
   },
   { 
     id: 6, 
-    name: 'Fiona Gallagher', 
-    email: 'fiona.ee@company.com', 
+    name: 'Dr. Chatchai Arunrat', 
+    email: 'chatchai.a@chula.ac.th', 
     role: 'instructor', 
-    department: 'Electrical Engineering', 
-    curriculum: 'Electrical Engineering',
-    allowedDepartments: ['Electrical Engineering', 'Mathematics and Computer Science'],
-    allowedCurriculums: ['Electrical Engineering']
+    department: 'Chemistry', 
+    curriculum: 'Chemistry',
+    allowedDepartments: ['Chemistry'],
+    allowedCurriculums: ['Chemistry']
   },
 ];
 
@@ -181,12 +196,12 @@ export interface CourseUserAccess {
 }
 
 const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
-  'CS101': [
+  '2301170': [
     {
       id: 'a1',
       userId: 4,
-      userName: 'Diana Prince',
-      userEmail: 'diana.instructor@company.com',
+      userName: 'Asst. Prof. Dr. Kanya Wattana',
+      userEmail: 'kanya.w@chula.ac.th',
       userRole: 'instructor',
       userDept: 'Mathematics and Computer Science',
       access: 'Upload & Download',
@@ -196,8 +211,8 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
     {
       id: 'a2',
       userId: 3,
-      userName: 'Charlie Davis',
-      userEmail: 'charlie.staff@company.com',
+      userName: 'Suda Kittisuk',
+      userEmail: 'suda.k@chula.ac.th',
       userRole: 'staff',
       userDept: 'Mathematics and Computer Science',
       access: 'Upload & Download',
@@ -207,8 +222,8 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
     {
       id: 'a3',
       userId: 1,
-      userName: 'Alice Smith',
-      userEmail: 'alice.admin@company.com',
+      userName: 'Prof. Dr. Somchai Prasert',
+      userEmail: 'somchai.p@chula.ac.th',
       userRole: 'super_admin',
       userDept: 'Mathematics and Computer Science',
       access: 'Download',
@@ -218,44 +233,55 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
     {
       id: 'a4',
       userId: 5,
-      userName: 'Evan Wright',
-      userEmail: 'evan.qa@company.com',
+      userName: 'Nattapong Srisawat',
+      userEmail: 'nattapong.s@chula.ac.th',
       userRole: 'staff',
       userDept: 'Mathematics and Computer Science',
       access: 'Download',
       isDefault: false,
-      defaultReason: 'External Reviewer'
+      defaultReason: 'Curriculum Coordinator'
     }
   ],
-  'MATH205': [
+  '2301107': [
+    {
+      id: 'a5_kanya',
+      userId: 4,
+      userName: 'Asst. Prof. Dr. Kanya Wattana',
+      userEmail: 'kanya.w@chula.ac.th',
+      userRole: 'instructor',
+      userDept: 'Mathematics and Computer Science',
+      access: 'Upload & Download',
+      isDefault: true,
+      defaultReason: 'Primary Mathematics Instructor'
+    },
     {
       id: 'a5',
       userId: 2,
-      userName: 'Bob Johnson',
-      userEmail: 'bob.admin@company.com',
+      userName: 'Assoc. Prof. Dr. Wichai Techasit',
+      userEmail: 'wichai.t@chula.ac.th',
       userRole: 'admin',
       userDept: 'Mathematics and Computer Science',
       access: 'Upload & Download',
       isDefault: true,
-      defaultReason: 'Lead Mathematics Instructor'
+      defaultReason: 'Department Admin'
     },
     {
       id: 'a6',
       userId: 3,
-      userName: 'Charlie Davis',
-      userEmail: 'charlie.staff@company.com',
+      userName: 'Suda Kittisuk',
+      userEmail: 'suda.k@chula.ac.th',
       userRole: 'staff',
       userDept: 'Mathematics and Computer Science',
       access: 'Download',
       isDefault: false
     }
   ],
-  'CS102': [
+  '2301263': [
     {
       id: 'a7',
       userId: 4,
-      userName: 'Diana Prince',
-      userEmail: 'diana.instructor@company.com',
+      userName: 'Asst. Prof. Dr. Kanya Wattana',
+      userEmail: 'kanya.w@chula.ac.th',
       userRole: 'instructor',
       userDept: 'Mathematics and Computer Science',
       access: 'Upload & Download',
@@ -264,55 +290,68 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
     {
       id: 'a8',
       userId: 1,
-      userName: 'Alice Smith',
-      userEmail: 'alice.admin@company.com',
+      userName: 'Prof. Dr. Somchai Prasert',
+      userEmail: 'somchai.p@chula.ac.th',
       userRole: 'super_admin',
       userDept: 'Mathematics and Computer Science',
       access: 'Download',
       isDefault: true
     }
   ],
-  'EE101': [
+  '2301365': [
     {
       id: 'a9',
-      userId: 6,
-      userName: 'Fiona Gallagher',
-      userEmail: 'fiona.ee@company.com',
+      userId: 4,
+      userName: 'Asst. Prof. Dr. Kanya Wattana',
+      userEmail: 'kanya.w@chula.ac.th',
       userRole: 'instructor',
-      userDept: 'Electrical Engineering',
+      userDept: 'Mathematics and Computer Science',
       access: 'Upload & Download',
-      isDefault: true
+      isDefault: true,
+      defaultReason: 'Lead Algorithms Instructor'
     },
     {
       id: 'a10',
-      userId: 1,
-      userName: 'Alice Smith',
-      userEmail: 'alice.admin@company.com',
-      userRole: 'super_admin',
-      userDept: 'Electrical Engineering',
+      userId: 3,
+      userName: 'Suda Kittisuk',
+      userEmail: 'suda.k@chula.ac.th',
+      userRole: 'staff',
+      userDept: 'Mathematics and Computer Science',
       access: 'Download',
       isDefault: false
     }
   ],
-  'CS204': [
+  '2302101': [
     {
       id: 'a11',
-      userId: 4,
-      userName: 'Diana Prince',
-      userEmail: 'diana.instructor@company.com',
+      userId: 6,
+      userName: 'Dr. Chatchai Arunrat',
+      userEmail: 'chatchai.a@chula.ac.th',
       userRole: 'instructor',
-      userDept: 'Electrical Engineering',
+      userDept: 'Chemistry',
       access: 'Upload & Download',
       isDefault: true,
-      defaultReason: 'Course Instructor'
+      defaultReason: 'Chemistry Course Instructor'
     },
     {
       id: 'a12',
       userId: 1,
-      userName: 'Alice Smith',
-      userEmail: 'alice.admin@company.com',
+      userName: 'Prof. Dr. Somchai Prasert',
+      userEmail: 'somchai.p@chula.ac.th',
       userRole: 'super_admin',
-      userDept: 'Electrical Engineering',
+      userDept: 'Chemistry',
+      access: 'Download',
+      isDefault: false
+    }
+  ],
+  '2304101': [
+    {
+      id: 'a13',
+      userId: 1,
+      userName: 'Prof. Dr. Somchai Prasert',
+      userEmail: 'somchai.p@chula.ac.th',
+      userRole: 'super_admin',
+      userDept: 'Physics',
       access: 'Download',
       isDefault: false
     }
@@ -322,8 +361,8 @@ const INITIAL_COURSE_ASSIGNMENTS: Record<string, CourseUserAccess[]> = {
 const MOCK_FILES: CourseFile[] = [
   { 
     id: 1, 
-    courseId: 'CS101', 
-    name: 'CS101_Summary_Final.pdf', 
+    courseId: '2301170', 
+    name: '2301170_Summary_Final.pdf', 
     year: '2024', 
     semester: '1', 
     time: '14/10/2024 15:30', 
@@ -331,8 +370,8 @@ const MOCK_FILES: CourseFile[] = [
   },
   { 
     id: 2, 
-    courseId: 'MATH205', 
-    name: 'MATH205_Grades_Raw.zip', 
+    courseId: '2301107', 
+    name: '2301107_Grades_Raw.zip', 
     year: '2024', 
     semester: '1', 
     time: '15/01/2024 09:15', 
@@ -340,8 +379,8 @@ const MOCK_FILES: CourseFile[] = [
   },
   { 
     id: 3, 
-    courseId: 'CS102', 
-    name: 'CS102_Grades_Raw.zip', 
+    courseId: '2301263', 
+    name: '2301263_Grades_Raw.zip', 
     year: '2024', 
     semester: '2', 
     time: '15/10/2024 16:45', 
@@ -352,7 +391,7 @@ const MOCK_FILES: CourseFile[] = [
         code: 'ERR_SCORE_OUT_OF_BOUNDS',
         stage: 'Validation',
         title: 'Score Value Exceeds Maximum (Row 42)',
-        description: 'Student score exceeds maximum allowable points (100). Found value "105.5" for Student ID 64010482 in Quiz 2 column.',
+        description: 'Student score exceeds maximum allowable points (100). Found value "105.5" for Student ID 6631048223 in Quiz 2 column.',
         location: 'Sheet "Midterm_Scores", Cell D42',
         suggestedFix: 'Verify student score sheet and correct the entered mark to be within valid range [0, 100].'
       },
@@ -370,7 +409,7 @@ const MOCK_FILES: CourseFile[] = [
         code: 'ERR_RUBRIC_FILE_MISSING',
         stage: 'Score Calculation',
         title: 'Missing Evaluation Rubric Spreadsheet',
-        description: 'Referenced rubric file "CS102_Rubric_ProgAssignment1.xlsx" is missing from the uploaded ZIP archive or is corrupt.',
+        description: 'Referenced rubric file "2301263_Rubric_ProgAssignment1.xlsx" is missing from the uploaded ZIP archive or is corrupt.',
         location: 'Archive root /rubrics/',
         suggestedFix: 'Re-upload the archive including all required rubric definition spreadsheets.'
       }
@@ -378,8 +417,8 @@ const MOCK_FILES: CourseFile[] = [
   },
   { 
     id: 4, 
-    courseId: 'CS305', 
-    name: 'CS305_Portfolio_Final.pdf', 
+    courseId: '2301365', 
+    name: '2301365_Portfolio_Final.pdf', 
     year: '2024', 
     semester: '1', 
     time: '18/10/2024 11:20', 
@@ -387,17 +426,17 @@ const MOCK_FILES: CourseFile[] = [
   },
   { 
     id: 5, 
-    courseId: 'EE101', 
-    name: 'EE101_Summary_Final.pdf', 
+    courseId: '2302101', 
+    name: '2302101_Summary_Final.pdf', 
     year: '2024', 
-    semester: '2', 
+    semester: '1', 
     time: '12/10/2024 14:00', 
     status: 'generated' 
   },
   { 
     id: 6, 
-    courseId: 'CS204', 
-    name: 'CS204_Portfolio_Summary.pdf', 
+    courseId: '2304101', 
+    name: '2304101_Portfolio_Summary.pdf', 
     year: '2024', 
     semester: '2', 
     time: '20/10/2024 14:15', 
@@ -2124,8 +2163,8 @@ const CourseManagement = ({
   // Year selector - single choice, defaults to latest year (no 'all' choice)
   const [selectedYear, setSelectedYear] = useState('2024');
   
-  // Top Dropdown Filters: Department & Curriculum
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  // Top Dropdown Filters: Department & Curriculum (defaults to Math department)
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('Mathematics and Computer Science');
   const [selectedCurriculum, setSelectedCurriculum] = useState<string>('');
 
   // Column Filter: Semester (empty = all)
@@ -2521,7 +2560,7 @@ const CourseManagement = ({
       <div className="space-y-4">
         {/* Row 1: Title + Action Buttons */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">Course Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Courses</h1>
           
           {/* Actions */}
           <div className="flex items-center gap-3 shrink-0">
@@ -3447,8 +3486,8 @@ const CourseManagement = ({
                   const activeDeptName = editingDepartment || selectedDepartment || (departments[0]?.name || 'Mathematics and Computer Science');
                   const activeCurrName = editingCurriculum || selectedCurriculum || 'Computer Science';
                   setBulkMockCourses([
-                    { id: 'CS102', name: 'Data Structures and Algorithms', department: activeDeptName, curriculum: activeCurrName, year: selectedYear, semester: '2' },
-                    { id: 'MATH301', name: 'Abstract Algebra', department: activeDeptName, curriculum: activeCurrName, year: selectedYear, semester: '1' }
+                    { id: '2301263', name: 'Data Structures and Fundamental Algorithms', department: activeDeptName, curriculum: activeCurrName, year: selectedYear, semester: '2' },
+                    { id: '2301217', name: 'Linear Algebra', department: activeDeptName, curriculum: activeCurrName, year: selectedYear, semester: '1' }
                   ]);
                 }}
                 className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
@@ -3562,8 +3601,8 @@ const CoverManagement = ({
   departments: Department[];
   courses: any[];
 }) => {
-  // Top Dropdown Filters: Department & Curriculum & Status
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  // Top Dropdown Filters: Department & Curriculum & Status (defaults to Math department)
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('Mathematics and Computer Science');
   const [selectedCurriculum, setSelectedCurriculum] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
 
@@ -3834,7 +3873,7 @@ const CoverManagement = ({
         {/* Row 1: Title + Action Buttons */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Cover Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Cover Page</h1>
             <p className="text-sm text-gray-500 mt-1">
               Manage standard course cover PDFs by curriculum. All courses under the same curriculum share the same cover.
             </p>
@@ -4403,7 +4442,7 @@ const CoverManagement = ({
                     ABET
                   </div>
                   <h2 className="text-xs font-bold tracking-wider text-gray-900 uppercase">
-                    FACULTY OF ENGINEERING & INFORMATION TECHNOLOGY
+                    FACULTY OF SCIENCE, CHULALONGKORN UNIVERSITY
                   </h2>
                   <p className="text-[11px] font-semibold text-indigo-950 uppercase">
                     {departments.find(d => d.id === previewCurr.departmentId)?.name || 'DEPARTMENT'}
@@ -4494,9 +4533,8 @@ const CourseList = ({
   const [selectedErrorFile, setSelectedErrorFile] = useState<{ course: any; file: CourseFile } | null>(null);
   const [expandedErrorIds, setExpandedErrorIds] = useState<string[]>([]);
   
-  // Toast & Batch download modal states
+  // Toast state
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [isDownloadPackageModalOpen, setIsDownloadPackageModalOpen] = useState(false);
 
   const showToastMsg = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToastMsg({ text, type });
@@ -4506,9 +4544,20 @@ const CourseList = ({
   // Year selector - single choice, defaults to latest year (no 'all' choice)
   const [selectedYear, setSelectedYear] = useState('2024');
 
-  // Top Dropdown Filters: Department & Curriculum
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  // Top Dropdown Filters: Department & Curriculum (defaults to Math department)
+  const [selectedDepartment, setSelectedDepartment] = useState<string>(
+    currentUser?.department || 'Mathematics and Computer Science'
+  );
   const [selectedCurriculum, setSelectedCurriculum] = useState<string>('');
+
+  // Sync default department when user logs in or switches account
+  React.useEffect(() => {
+    if (currentUser?.department) {
+      setSelectedDepartment(currentUser.department);
+    } else {
+      setSelectedDepartment('Mathematics and Computer Science');
+    }
+  }, [currentUser]);
 
   // Column Filter: Semester (empty = all)
   const [selectedSemesters, setSelectedSemesters] = useState<string[]>([]);
@@ -4518,6 +4567,14 @@ const CourseList = ({
   const [sortField, setSortField] = useState<string>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Checkbox multi-select state for courses to download
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+
+  // Clear selected courses whenever major filters change
+  React.useEffect(() => {
+    setSelectedCourseIds([]);
+  }, [selectedYear, selectedDepartment, selectedCurriculum]);
+
   // Filter departments & curriculums based on user role and permissions
   const availableDepartments = React.useMemo(() => {
     if (!currentUser || ['super_admin', 'admin'].includes(currentUser.role)) {
@@ -4526,12 +4583,7 @@ const CourseList = ({
     if (currentUser.allowedDepartments && currentUser.allowedDepartments.length > 0) {
       return departments.filter(d => currentUser.allowedDepartments!.includes(d.name));
     }
-    if (currentUser.role === 'instructor') {
-      // 2 departments for instructor
-      return departments.filter(d => ['Mathematics and Computer Science', 'Electrical Engineering'].includes(d.name));
-    }
-    if (currentUser.role === 'staff') {
-      // 1 department for staff
+    if (currentUser.role === 'instructor' || currentUser.role === 'staff') {
       return departments.filter(d => d.name === (currentUser.department || 'Mathematics and Computer Science'));
     }
     return departments;
@@ -4544,16 +4596,10 @@ const CourseList = ({
     if (currentUser.allowedCurriculums && currentUser.allowedCurriculums.length > 0) {
       return curriculums.filter(c => currentUser.allowedCurriculums!.includes(c.name));
     }
-    if (currentUser.role === 'instructor') {
-      // 1 curriculum for instructor
-      return curriculums.filter(c => c.name === (currentUser.curriculum || 'Computer Science'));
-    }
-    if (currentUser.role === 'staff') {
-      // 2 curriculums for staff
-      return curriculums.filter(c => ['Computer Science', 'Mathematics'].includes(c.name));
-    }
-    return curriculums;
-  }, [currentUser, curriculums]);
+    const userDept = currentUser.department || 'Mathematics and Computer Science';
+    const deptObj = departments.find(d => d.name === userDept);
+    return curriculums.filter(c => !deptObj || c.departmentId === deptObj.id);
+  }, [currentUser, curriculums, departments]);
 
   const toggleSemester = (sem: string) => {
     if (selectedSemesters.includes(sem)) {
@@ -4573,20 +4619,26 @@ const CourseList = ({
 
   const handleDepartmentChange = (deptName: string) => {
     setSelectedDepartment(deptName);
+    setSelectedCourseIds([]);
     if (deptName && selectedCurriculum) {
       const parentDept = departments.find(d => d.name === deptName);
       const curr = curriculums.find(c => c.name === selectedCurriculum);
-      if (curr && parentDept && curr.departmentId !== parentDept.id && !(currentUser?.role === 'instructor' && curr.name === 'Computer Science')) {
+      if (curr && parentDept && curr.departmentId !== parentDept.id) {
         setSelectedCurriculum('');
       }
     }
   };
 
   const clearAllFilters = () => {
-    setSelectedDepartment('');
+    setSelectedDepartment(
+      !currentUser || ['super_admin', 'admin'].includes(currentUser.role) 
+        ? '' 
+        : (currentUser.department || 'Mathematics and Computer Science')
+    );
     setSelectedCurriculum('');
     setSelectedSemesters([]);
     setSearchQuery('');
+    setSelectedCourseIds([]);
   };
 
   const hasActiveFilters = Boolean(
@@ -4682,6 +4734,25 @@ const CourseList = ({
     .map(course => ({ course, file: getCourseFile(course.id) }))
     .filter((item): item is { course: any; file: CourseFile } => item.file?.status === 'generated');
 
+  // List of selected courses with generated files in current view
+  const selectedGeneratedCourses = availableGeneratedCourses.filter(item => 
+    selectedCourseIds.includes(item.course.id)
+  );
+
+  const handleToggleSelect = (courseId: string) => {
+    setSelectedCourseIds(prev => 
+      prev.includes(courseId) ? prev.filter(id => id !== courseId) : [...prev, courseId]
+    );
+  };
+
+  const handleSelectAllToggle = () => {
+    if (selectedCourseIds.length === sortedCourses.length && sortedCourses.length > 0) {
+      setSelectedCourseIds([]);
+    } else {
+      setSelectedCourseIds(sortedCourses.map(c => c.id));
+    }
+  };
+
   const triggerBrowserDownload = (filename: string, content: string) => {
     const blob = new Blob([content], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
@@ -4694,22 +4765,28 @@ const CourseList = ({
     URL.revokeObjectURL(url);
   };
 
-  const handleDownloadAllCoursePortfolios = () => {
-    if (availableGeneratedCourses.length === 0) {
-      showToastMsg('No generated course portfolio PDFs available to download for current filters.', 'info');
+  const handleDownloadSelectedCoursePortfolios = () => {
+    if (selectedCourseIds.length === 0) {
+      showToastMsg('Please select at least one course to download.', 'info');
       return;
     }
 
-    const zipFileName = `ABET_Course_Portfolios_${selectedYear}.zip`;
+    if (selectedGeneratedCourses.length === 0) {
+      showToastMsg(`None of the ${selectedCourseIds.length} selected courses have generated portfolio PDFs to download.`, 'error');
+      return;
+    }
+
+    const zipFileName = `ABET_Course_Portfolios_Selected_${selectedYear}.zip`;
     const manifestContent = [
       `=============================================================`,
-      `ABET COURSE PORTFOLIOS ARCHIVE - ACADEMIC YEAR ${selectedYear}`,
+      `ABET SELECTED COURSE PORTFOLIOS ARCHIVE - ACADEMIC YEAR ${selectedYear}`,
       `Generated: ${new Date().toLocaleString()}`,
-      `Total Course Portfolios: ${availableGeneratedCourses.length}`,
+      `Selected Courses: ${selectedCourseIds.length}`,
+      `Included Portfolios: ${selectedGeneratedCourses.length}`,
       `=============================================================`,
       ``,
       `INCLUDED COURSE PORTFOLIO DOSSIERS:`,
-      ...availableGeneratedCourses.map((item, idx) => 
+      ...selectedGeneratedCourses.map((item, idx) => 
         `${idx + 1}. [${item.course.id}] ${item.course.name}\n` +
         `   - Curriculum: ${item.course.curriculum}\n` +
         `   - Semester: ${item.course.semester || '1'}\n` +
@@ -4719,7 +4796,11 @@ const CourseList = ({
     ].join('\n');
 
     triggerBrowserDownload(zipFileName, manifestContent);
-    showToastMsg(`Downloading all ${availableGeneratedCourses.length} course portfolio PDFs (${zipFileName})...`, 'success');
+    if (selectedGeneratedCourses.length < selectedCourseIds.length) {
+      showToastMsg(`Downloaded ${selectedGeneratedCourses.length} generated PDFs (${selectedCourseIds.length - selectedGeneratedCourses.length} selected courses have no generated PDF).`, 'info');
+    } else {
+      showToastMsg(`Downloading ${selectedGeneratedCourses.length} selected course portfolio PDFs (${zipFileName})...`, 'success');
+    }
   };
 
   const handleDownloadSingleFile = (file: CourseFile, course: any) => {
@@ -4732,51 +4813,34 @@ const CourseList = ({
     <div className="p-6 space-y-5 w-full">
       {/* Top Header: Title on Row 1, Filters on Row 2 under Title */}
       <div className="space-y-4">
-        {/* Row 1: Title & Download All Button */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Row 1: Title & Action Button (hidden by default, appears when checkboxes are selected) */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 min-h-[40px]">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Course Portfolios</h1>
             {currentUser && !['super_admin', 'admin'].includes(currentUser.role) && (
               <p className="text-xs text-gray-500 mt-0.5">
-                {currentUser.role === 'instructor' 
-                  ? 'Showing courses from your 2 affiliated departments and 1 curriculum.' 
-                  : 'Showing courses from your department across 2 curriculums.'}
+                Showing courses from your affiliated department ({currentUser.department || 'Mathematics and Computer Science'}).
               </p>
             )}
           </div>
 
-          {/* Download All Course Port PDF Action */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDownloadAllCoursePortfolios}
-              disabled={availableGeneratedCourses.length === 0}
-              className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg shadow-sm transition-all cursor-pointer"
-              title={availableGeneratedCourses.length > 0 
-                ? `Download all ${availableGeneratedCourses.length} course portfolio PDFs for ${selectedYear}`
-                : `No generated course portfolio PDFs to download for ${selectedYear}`
-              }
-            >
-              <Download size={16} className="mr-2 shrink-0" />
-              <span>Download all course port PDF</span>
-              {availableGeneratedCourses.length > 0 && (
-                <span className="ml-2 bg-indigo-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                  {availableGeneratedCourses.length}
-                </span>
-              )}
-            </button>
-
-            {availableGeneratedCourses.length > 0 && (
+          {/* Download Action: hidden by default, appears when user selects portfolio checkbox(es) */}
+          {selectedCourseIds.length > 0 && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsDownloadPackageModalOpen(true)}
-                className="p-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors cursor-pointer"
-                title="View Course Portfolio PDF Package Details"
+                onClick={handleDownloadSelectedCoursePortfolios}
+                className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-all cursor-pointer whitespace-nowrap"
+                title={`Download generated portfolio PDFs for ${selectedCourseIds.length} selected course(s)`}
               >
-                <Eye size={16} />
+                <Download size={16} className="mr-2 shrink-0" />
+                <span>Download Selected</span>
+                <span className="ml-2 bg-indigo-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                  {selectedCourseIds.length}
+                </span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Row 2: Filters under page title */}
@@ -4800,7 +4864,6 @@ const CourseList = ({
               .filter(c => {
                 if (!selectedDepartment) return true;
                 const parentDept = departments.find(d => d.name === selectedDepartment);
-                if (currentUser?.role === 'instructor') return true;
                 return parentDept && c.departmentId === parentDept.id;
               })
               .map(c => ({ value: c.name, label: c.name, subtext: c.code }))
@@ -4843,6 +4906,11 @@ const CourseList = ({
           </div>
           <div className="text-xs text-gray-500 px-2 whitespace-nowrap">
             Showing <span className="font-semibold text-gray-900">{sortedCourses.length}</span> course{sortedCourses.length === 1 ? '' : 's'} in <span className="font-semibold text-indigo-600">{selectedYear}</span>
+            {selectedCourseIds.length > 0 && (
+              <span className="ml-1.5 text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                {selectedCourseIds.length} selected
+              </span>
+            )}
           </div>
         </div>
 
@@ -4890,9 +4958,18 @@ const CourseList = ({
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="w-10 px-4 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={selectedCourseIds.length === sortedCourses.length && sortedCourses.length > 0}
+                    onChange={handleSelectAllToggle}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                    title={selectedCourseIds.length === sortedCourses.length ? "Deselect all" : "Select all"}
+                  />
+                </th>
                 <th 
                   onClick={() => handleSort('id')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     Course ID
@@ -4905,7 +4982,7 @@ const CourseList = ({
                 </th>
                 <th 
                   onClick={() => handleSort('name')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     Course Name
@@ -4927,7 +5004,7 @@ const CourseList = ({
                 />
                 <th 
                   onClick={() => handleSort('status')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     Status
@@ -4940,7 +5017,7 @@ const CourseList = ({
                 </th>
                 <th 
                   onClick={() => handleSort('time')}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-1">
                     Latest Update
@@ -4951,7 +5028,7 @@ const CourseList = ({
                     )}
                   </div>
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -4959,26 +5036,38 @@ const CourseList = ({
             <tbody className="bg-white divide-y divide-gray-200">
               {sortedCourses.map(course => {
                 const file = getCourseFile(course.id);
+                const isSelected = selectedCourseIds.includes(course.id);
 
                 return (
                   <tr 
                     key={course.id} 
-                    className="hover:bg-gray-50 transition-colors"
+                    onClick={() => handleToggleSelect(course.id)}
+                    className={`transition-colors cursor-pointer ${
+                      isSelected ? 'bg-indigo-50/50 hover:bg-indigo-50/70' : 'hover:bg-gray-50'
+                    }`}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-700">
+                    <td className="w-10 px-4 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected} 
+                        onChange={() => handleToggleSelect(course.id)}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-indigo-700">
                       <span className="bg-indigo-50 px-2.5 py-1 rounded-md text-xs tracking-wider uppercase">
                         {course.id}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <span>{course.name}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-600">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
                         {course.semester === 'Summer' ? 'Summer' : `Sem ${course.semester || '1'}`}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="px-5 py-4 whitespace-nowrap text-sm" onClick={(e) => e.stopPropagation()}>
                       {file ? (
                         file.status === 'failed' ? (
                           <Badge 
@@ -5001,7 +5090,7 @@ const CourseList = ({
                         <span className="text-gray-400 text-xs italic">No Files</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500">
                       {file ? (
                         <div className="flex items-center text-xs text-gray-500">
                           <CheckCircle2 size={12} className="mr-1 text-gray-400" />
@@ -5011,7 +5100,7 @@ const CourseList = ({
                         '-'
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                    <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" onClick={(e) => e.stopPropagation()}>
                       {file?.status === 'generated' && (
                         <button 
                           type="button"
@@ -5024,6 +5113,7 @@ const CourseList = ({
                       )}
                       {file?.status === 'failed' && (
                         <button 
+                          type="button"
                           onClick={() => handleOpenErrors(course, file)}
                           className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
                           title="View Processing Errors"
@@ -5032,6 +5122,7 @@ const CourseList = ({
                         </button>
                       )}
                       <button 
+                        type="button"
                         onClick={() => setUploadTargetCourse(course)}
                         className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1.5 rounded-lg transition-colors inline-flex items-center cursor-pointer"
                         title={file?.status === 'failed' ? "Re-upload Files" : "Upload Files"}
@@ -5044,7 +5135,7 @@ const CourseList = ({
               })}
               {sortedCourses.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-gray-500 italic">
+                  <td colSpan={7} className="text-center py-8 text-gray-500 italic">
                     No courses found matching the selected filters for academic year {selectedYear}.
                   </td>
                 </tr>
@@ -5290,91 +5381,7 @@ const CourseList = ({
         </div>
       </Modal>
 
-      {/* Download Package Details Modal */}
-      <Modal
-        isOpen={isDownloadPackageModalOpen}
-        onClose={() => setIsDownloadPackageModalOpen(false)}
-        title="Course Portfolio Package (PDF)"
-        maxWidth="max-w-2xl"
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setIsDownloadPackageModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              Close
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                handleDownloadAllCoursePortfolios();
-                setIsDownloadPackageModalOpen(false);
-              }}
-              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm cursor-pointer"
-            >
-              <Download size={16} className="mr-2" /> Download All (ZIP)
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-indigo-100 text-indigo-700 rounded-lg shrink-0">
-                <FileText size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-indigo-900">
-                  ABET Course Portfolio Package — Academic Year {selectedYear}
-                </h4>
-                <p className="text-xs text-indigo-700 mt-1">
-                  Ready to download <strong>{availableGeneratedCourses.length}</strong> official Course Portfolio dossier(s) as a zip archive.
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-            <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex justify-between items-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              <span>Included Course Portfolios</span>
-              <span>{availableGeneratedCourses.length} Files</span>
-            </div>
-            <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
-              {availableGeneratedCourses.map(({ course, file }) => (
-                <div key={course.id} className="p-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                  <div className="min-w-0 flex-1 pr-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
-                        {course.id}
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900 truncate">
-                        {course.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                      <span className="font-mono text-gray-700">{file.name}</span>
-                      <span>•</span>
-                      <span>Sem {course.semester || '1'}</span>
-                      <span>•</span>
-                      <span>{file.time}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadSingleFile(file, course)}
-                    className="flex items-center gap-1 text-xs text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-2.5 py-1.5 rounded-lg transition-colors font-medium shrink-0 cursor-pointer"
-                    title={`Download ${file.name}`}
-                  >
-                    <Download size={13} />
-                    <span>Download</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Modal>
 
       {/* Toast Notification */}
       {toastMsg && (
@@ -5499,27 +5506,27 @@ export default function App() {
             {!isSidebarCollapsed && <span className="truncate">Course Portfolios</span>}
           </button>
           
-          {/* Admin & Super Admin: Course Management, Cover, and Users */}
+          {/* Admin & Super Admin: Courses, Cover Page, and Users */}
           {['super_admin', 'admin'].includes(currentUser.role) && (
             <>
               <button
                 type="button"
                 onClick={() => setActiveTab('course_management')}
                 className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'course_management' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
-                title={isSidebarCollapsed ? "Course Management" : undefined}
+                title={isSidebarCollapsed ? "Courses" : undefined}
               >
                 <BookMarked size={isSidebarCollapsed ? 20 : 18} className={isSidebarCollapsed ? 'shrink-0' : 'mr-3 shrink-0'} />
-                {!isSidebarCollapsed && <span className="truncate">Course Management</span>}
+                {!isSidebarCollapsed && <span className="truncate">Courses</span>}
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('cover_management')}
                 className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center p-2.5' : 'px-3 py-2.5'} rounded-lg text-sm font-medium transition-colors cursor-pointer ${activeTab === 'cover_management' ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
-                title={isSidebarCollapsed ? "Cover" : undefined}
+                title={isSidebarCollapsed ? "Cover Page" : undefined}
               >
                 <Layers size={isSidebarCollapsed ? 20 : 18} className={isSidebarCollapsed ? 'shrink-0' : 'mr-3 shrink-0'} />
-                {!isSidebarCollapsed && <span className="truncate">Cover</span>}
+                {!isSidebarCollapsed && <span className="truncate">Cover Page</span>}
               </button>
 
               <button
