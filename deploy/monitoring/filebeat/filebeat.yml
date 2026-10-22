@@ -1,0 +1,78 @@
+# Filebeat: container logs of THIS compose project -> Elasticsearch data stream filebeat-8.19.x (user abet_ingest).
+# ABET_PROJECT / DEPLOY_ENV / ES_INGEST_PASSWORD come from the environment (compose).
+filebeat.inputs:
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+
+processors:
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+  # Only containers of this compose project (dev and prod stacks can run side by side on one host).
+  - drop_event:
+      when:
+        not:
+          equals:
+            container.labels.com_docker_compose_project: "${ABET_PROJECT}"
+  # Never ship Filebeat's own output (feedback loop).
+  - drop_event:
+      when:
+        equals:
+          container.labels.com_docker_compose_service: "filebeat"
+  - copy_fields:
+      fields:
+        - from: container.labels.com_docker_compose_service
+          to: service.name
+      fail_on_error: false
+      ignore_missing: true
+  - add_fields:
+      target: service
+      fields:
+        environment: "${DEPLOY_ENV}"
+  # Go slog JSON lines -> abet_raw (non-JSON lines such as the Python worker's stay untouched).
+  - decode_json_fields:
+      fields: ["message"]
+      target: "abet_raw"
+      max_depth: 1
+      overwrite_keys: false
+      add_error_key: false
+  - script:
+      lang: javascript
+      id: abet_log_mapping
+      source: |
+        function process(event) {
+          var raw = event.Get("abet_raw");
+          if (raw && typeof raw === "object") {
+            var skip = {time: 1, msg: 1, level: 1, trace_id: 1, span_id: 1};
+            if (raw.msg !== undefined) { event.Put("message", String(raw.msg)); }
+            if (raw.level !== undefined) { event.Put("log.level", String(raw.level).toLowerCase()); }
+            if (raw.trace_id) { event.Put("trace.id", String(raw.trace_id)); }
+            if (raw.span_id) { event.Put("span.id", String(raw.span_id)); }
+            for (var k in raw) {
+              if (!raw.hasOwnProperty(k) || skip[k]) { continue; }
+              var v = raw[k];
+              // every other attribute is stored as a string under abet.<key> (dots in keys -> "_"):
+              // avoids mapping conflicts between services logging the same key with different types.
+              var s = (typeof v === "string") ? v : JSON.stringify(v);
+              event.Put("abet." + k.replace(/\./g, "_"), s);
+            }
+            event.Delete("abet_raw");
+          } else {
+            var m = event.Get("message");
+            if (typeof m === "string") {
+              var r = /trace_id=([0-9a-f]{32})/.exec(m);
+              if (r) { event.Put("trace.id", r[1]); }
+            }
+          }
+        }
+  - drop_fields:
+      fields: ["abet_raw"]
+      ignore_missing: true
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  username: "abet_ingest"
+  password: "${ES_INGEST_PASSWORD}"
+
+logging.level: warning
+logging.to_stderr: true

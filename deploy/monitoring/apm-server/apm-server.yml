@@ -1,0 +1,14 @@
+# Standalone APM Server (not Fleet): receives OTLP/HTTP (/v1/traces) on 8200 and writes to Elasticsearch data
+# streams (traces-apm-*, logs-apm.*, metrics-apm.*). Secrets come from the environment (compose).
+apm-server:
+  host: "0.0.0.0:8200"
+  auth:
+    secret_token: "${APM_SECRET_TOKEN}"
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  username: "abet_ingest"
+  password: "${ES_INGEST_PASSWORD}"
+
+logging.level: warning
+logging.to_stderr: true

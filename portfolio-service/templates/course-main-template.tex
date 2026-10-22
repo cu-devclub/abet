@@ -1,0 +1,97 @@
+\documentclass[12pt]{article}
+
+% Resolve the course resource root so this file compiles from any directory
+\newcommand{\RepoRoot}{.}
+\IfFileExists{course_documents/__COURSE_FOLDER_NAME__/00-meta/course-meta.tex}{}{%
+  \IfFileExists{../course_documents/__COURSE_FOLDER_NAME__/00-meta/course-meta.tex}{\renewcommand{\RepoRoot}{..}}{%
+    \IfFileExists{../../course_documents/__COURSE_FOLDER_NAME__/00-meta/course-meta.tex}{\renewcommand{\RepoRoot}{../..}}{%
+      \errmessage{Unable to locate course_documents/__COURSE_FOLDER_NAME__/00-meta/course-meta.tex; please update path detection.}%
+    }%
+  }%
+}
+
+% 1) Load per-course meta first (flags + identities + paths)
+\input{\RepoRoot/course_documents/__COURSE_FOLDER_NAME__/00-meta/course-meta.tex}
+
+
+% 2) Load the shared binder styles/macros (uses meta vars)
+\usepackage{abet-binder}
+
+% Normalize resource roots to match the resolved repository root
+\let\CourseRootRelative\CourseRoot
+\renewcommand{\CourseRoot}{\RepoRoot/\CourseRootRelative}
+\ifcsname CoverImage\endcsname
+  \let\CoverImageRelative\CoverImage
+  \renewcommand{\CoverImage}{\RepoRoot/\CoverImageRelative}
+\fi
+
+\begin{document}
+
+% -------- Cover + ToC (roman) --------
+\hypersetup{pageanchor=false}
+\CourseCoverWithImage[6.5cm][1cm][.78]{\CoverImage}
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+
+% -------- Body --------
+\BigHeaderPage{Course Syllabus}
+\SubHeaderPageSilent{Course Syllabus - ABET}
+\IncludeABETFromData
+%\SubHeaderPage{Course Syllabus - Instructor}
+%\IncludeWithLayoutIfExists{\CourseRoot/01-syllabus/syllabus-instructor.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}
+
+\BigHeaderPage{Course Textbook}
+\TextbookBlock{\CourseRoot/02-textbook}
+
+\BigHeaderPage{Course Schedule}
+\input{\CourseRoot/03-schedule/course-schedule.tex}
+
+%\BigHeaderPage{Course Grading Criteria}
+%\input{\CourseRoot/90-grades/course-grading.tex}
+
+\BigHeaderPage{Overall Course Grades}
+\IncludeWithLayoutIfExists{\CourseRoot/90-grades/overall-grades.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}
+
+\IfExpectedSection{10-lectures}{\CourseRootRelative}{%
+\BigHeaderPage{Lecture Slides}
+\foreach \w in {1,...,20}{\LectureWeekBlock{\w}}
+}
+
+\IfExpectedSection{20-assignments}{\CourseRootRelative}{%
+\BigHeaderPage{Assignments}
+\SubHeaderPage{All Assignment Scoresheet}
+\IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg-all-scores.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}
+\foreach \a in {1,...,30}{\AssignmentBlock{\a}}
+}
+
+\IfExpectedSection{30-quizzes}{\CourseRootRelative}{%
+\newif\ifHasQuizzes
+\HasQuizzesfalse
+\foreach \q in {1,...,30}{%
+  \edef\qXX{\ifnum\q<10 0\q\else \q\fi}%
+  \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-instructions.pdf}{\HasQuizzestrue}{}%
+}
+\ifHasQuizzes
+  \BigHeaderPage{Quizzes}
+  \SubHeaderPage{All Quiz Scoresheet}
+  \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz-all-scores.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}
+  \foreach \q in {1,...,30}{\QuizBlock{\q}}
+\fi
+}
+
+\IfExpectedSection{40-exams}{\CourseRootRelative}{%
+\IfExamHasContent{midterm}{%
+\BigHeaderPage{Midterm Exam}
+\ExamBlock{Midterm Exam}{midterm}
+}
+
+\IfExamHasContent{final}{%
+\BigHeaderPage{Final Exam}
+\ExamBlock{Final Exam}{final}
+}
+}
+
+\end{document}

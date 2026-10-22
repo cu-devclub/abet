@@ -1,0 +1,62 @@
+{
+  "RABBITMQ_HOST": "abet-rabbitmq",
+  "RABBITMQ_PORT": 5672,
+  "RABBITMQ_USER": "guest",
+  "RABBITMQ_PASS": "guest",
+  "RABBITMQ_VHOST": "/",
+  "RABBITMQ_QUEUE": "course_build_queue",
+  "RABBITMQ_STATUS_QUEUE": "course_status_queue",
+  "DEFAULT_OUTPUT_DIR": "/var/storage/output_pdfs",
+  "DELETE_ZIP_DEFAULT": true,
+  "LOG_LEVEL": "INFO",
+  "MARIADB_HOST": "abet-mariadb",
+  "MARIADB_PORT": 3306,
+  "MARIADB_USER": "root",
+  "MARIADB_PASS": "password",
+  "MARIADB_DB": "abet_db",
+  "MARIADB_TABLE": "app_settings",
+  "LAYOUT_PRESETS": {
+    "slides_4up": {
+      "pages": "-",
+      "nup": "2x2",
+      "landscape": "true",
+      "scale": "0.85",
+      "frame": "true"
+    },
+    "slides_2up": {
+      "pages": "-",
+      "nup": "1x2",
+      "landscape": "true",
+      "scale": "0.9",
+      "frame": "true"
+    },
+    "slides_2across": {
+      "pages": "-",
+      "nup": "2x1",
+      "landscape": "true",
+      "scale": "0.9",
+      "frame": "true"
+    },
+    "fullpage_portrait": {
+      "pages": "-",
+      "nup": "1x1",
+      "landscape": "false",
+      "scale": "0.95",
+      "frame": "false"
+    },
+    "fullpage_landscape": {
+      "pages": "-",
+      "nup": "1x1",
+      "landscape": "true",
+      "scale": "0.95",
+      "frame": "false"
+    },
+    "scoresheet_compact": {
+      "pages": "-",
+      "nup": "1x1",
+      "landscape": "false",
+      "scale": "0.9",
+      "frame": "false"
+    }
+  }
+}

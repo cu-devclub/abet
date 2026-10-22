@@ -1,0 +1,74 @@
+  # --- Monitoring routes (rendered only when MONITORING_ENABLED=true; otherwise /grafana, /kibana fall to the 404 JSON below) ---
+  # Grafana's own /metrics (Prometheus scrapes it inside the network) is never exposed.
+  - id: grafana-metrics-blocked
+    uri: /grafana/metrics
+    priority: 200
+    plugins:
+      fault-injection:
+        abort:
+          http_status: 404
+          body: '{"error":"not found"}'
+          headers:
+            Content-Type: application/json
+  # The monitoring tools never see the ABET session: abet_session / abet_oauth are removed from the Cookie header
+  # and every client-supplied X-User-* header is dropped before proxying.
+  - id: grafana
+    uris: [/grafana, /grafana/*]
+    priority: 100
+    enable_websocket: true
+    upstream:
+      type: roundrobin
+      nodes:
+        "grafana:3000": 1
+      timeout: {connect: 60, send: 300, read: 300}
+    plugins:
+      serverless-pre-function:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              for name, _ in pairs(ngx.req.get_headers()) do
+                if string.sub(string.lower(name), 1, 7) == 'x-user-' then ngx.req.clear_header(name) end
+              end
+              local cookie = ngx.var.http_cookie
+              if cookie then
+                local kept = {}
+                for part in string.gmatch(cookie, '[^;]+') do
+                  local name = string.match(part, '^%s*([^=%s]+)')
+                  if name ~= 'abet_session' and name ~= 'abet_oauth' then
+                    kept[#kept + 1] = (string.gsub(part, '^%s+', ''))
+                  end
+                end
+                if #kept == 0 then ngx.req.clear_header('Cookie') else ngx.req.set_header('Cookie', table.concat(kept, '; ')) end
+              end
+            end
+  - id: kibana
+    uris: [/kibana, /kibana/*]
+    priority: 100
+    enable_websocket: true
+    upstream:
+      type: roundrobin
+      nodes:
+        "kibana:5601": 1
+      timeout: {connect: 60, send: 300, read: 300}
+    plugins:
+      serverless-pre-function:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              for name, _ in pairs(ngx.req.get_headers()) do
+                if string.sub(string.lower(name), 1, 7) == 'x-user-' then ngx.req.clear_header(name) end
+              end
+              local cookie = ngx.var.http_cookie
+              if cookie then
+                local kept = {}
+                for part in string.gmatch(cookie, '[^;]+') do
+                  local name = string.match(part, '^%s*([^=%s]+)')
+                  if name ~= 'abet_session' and name ~= 'abet_oauth' then
+                    kept[#kept + 1] = (string.gsub(part, '^%s+', ''))
+                  end
+                end
+                if #kept == 0 then ngx.req.clear_header('Cookie') else ngx.req.set_header('Cookie', table.concat(kept, '; ')) end
+              end
+            end

@@ -1,0 +1,27 @@
+# APISIX standalone (data plane only, declarative routes from apisix.yaml, no etcd).
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml
+
+# The Admin API is not started for the data_plane role; the standalone config is read from
+# /usr/local/apisix/conf/apisix.yaml (mounted per environment by compose.dev.yaml / compose.prod.yaml).
+
+nginx_config:
+  http:
+    # max(MAX_UPLOAD_MB, MAX_COVER_MB, MAX_IMPORT_MB) + 20 MB multipart headroom, computed from .env by
+    # deploy/api-gateway/entrypoint.sh (APISIX env substitution).
+    client_max_body_size: ${{GATEWAY_MAX_BODY_MB}}m
+  http_server_configuration_snippet: |
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    client_body_timeout 300s;
+
+# APISIX metrics exporter (prometheus plugin global rule): listens on all interfaces of the container network only;
+# it is never routed through the gateway and never published.
+plugin_attr:
+  prometheus:
+    export_addr:
+      ip: 0.0.0.0
+      port: 9091

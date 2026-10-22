@@ -1,0 +1,82 @@
+# Prometheus scrape config. @@ENV@@ is replaced with dev|prod by the compose entrypoint (DEPLOY_ENV).
+# Every target carries env="<dev|prod>"; job names are used by the Grafana dashboards - do not rename them.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+  external_labels:
+    env: "@@ENV@@"
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels: {env: "@@ENV@@"}
+
+  - job_name: cadvisor
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels: {env: "@@ENV@@"}
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels: {env: "@@ENV@@"}
+
+  - job_name: auth-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["auth-service:8080"]
+        labels: {env: "@@ENV@@"}
+
+  - job_name: main-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["main-service:8080"]
+        labels: {env: "@@ENV@@"}
+
+  # APISIX prometheus plugin (global rule); exporter listens on 9091, never routed or published.
+  - job_name: api-gateway
+    metrics_path: /apisix/prometheus/metrics
+    static_configs:
+      - targets: ["api-gateway:9091"]
+        labels: {env: "@@ENV@@"}
+
+  - job_name: rabbitmq
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+        labels: {env: "@@ENV@@"}
+
+  - job_name: rabbitmq-per-object
+    metrics_path: /metrics/per-object
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+        labels: {env: "@@ENV@@"}
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels: {env: "@@ENV@@"}
+
+  - job_name: minio-cluster
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs:
+      - targets: ["minio:9000"]
+        labels: {env: "@@ENV@@"}
+
+  - job_name: minio-bucket
+    metrics_path: /minio/v2/metrics/bucket
+    static_configs:
+      - targets: ["minio:9000"]
+        labels: {env: "@@ENV@@"}
+
+  # Grafana's /metrics is protected with basic auth (GF_METRICS_BASIC_AUTH_*); the password file is written by the entrypoint.
+  - job_name: grafana
+    metrics_path: /grafana/metrics
+    basic_auth:
+      username: prometheus
+      password_file: /tmp/grafana-metrics-password
+    static_configs:
+      - targets: ["grafana:3000"]
+        labels: {env: "@@ENV@@"}

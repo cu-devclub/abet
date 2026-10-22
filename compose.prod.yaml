@@ -1,0 +1,61 @@
+# Production overrides: production images, restart policy, only the gateway and the MinIO console ports are published.
+# Usage: docker compose -f compose.yaml -f compose.prod.yaml up -d --build   (or `make prod`)
+
+services:
+  postgres:
+    restart: unless-stopped
+
+  rabbitmq:
+    restart: unless-stopped
+
+  minio:
+    restart: unless-stopped
+    ports:
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"   # console only; the S3 API (9000) stays internal
+
+  auth-service:
+    restart: unless-stopped
+
+  main-service:
+    restart: unless-stopped
+
+  portfolio-service:
+    restart: unless-stopped   # replicas: PORTFOLIO_WORKER_REPLICAS (compose.yaml)
+
+  # Monitoring (profile monitoring): nothing published; Grafana/Kibana only via the gateway
+  elasticsearch:
+    restart: unless-stopped
+
+  kibana:
+    restart: unless-stopped
+
+  apm-server:
+    restart: unless-stopped
+
+  filebeat:
+    restart: unless-stopped
+
+  prometheus:
+    restart: unless-stopped
+
+  cadvisor:
+    restart: unless-stopped
+
+  node-exporter:
+    restart: unless-stopped
+
+  postgres-exporter:
+    restart: unless-stopped
+
+  grafana:
+    restart: unless-stopped
+
+  frontend:
+    restart: unless-stopped
+
+  api-gateway:
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_HTTP_PORT:-8000}:9080"
+    volumes:
+      - ./api-gateway/apisix.prod.yaml:/gateway-src/apisix.yaml:ro

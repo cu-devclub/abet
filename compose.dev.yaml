@@ -1,0 +1,66 @@
+# Development overrides: hot reload (air / vite), bind-mounted sources, published dev ports.
+# Usage: docker compose -f compose.yaml -f compose.dev.yaml up -d --build   (or `make dev`)
+
+services:
+  postgres:
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+
+  rabbitmq:
+    ports:
+      - "${RABBITMQ_MGMT_HOST_PORT:-15672}:15672"
+
+  minio:
+    ports:
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+      # S3 API for debugging only (never published in prod)
+      - "${MINIO_API_HOST_PORT:-9000}:9000"
+
+  # Monitoring (profile monitoring): Prometheus UI for debugging; Grafana/Kibana only via the gateway (/grafana, /kibana)
+  prometheus:
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile.dev
+    environment:
+      ENABLE_SWAGGER: "true"
+      APP_ENV: development
+    volumes:
+      - ./auth-service:/app
+    healthcheck:
+      start_period: 300s   # first air build (cold Go cache) can take minutes, longer on Windows bind mounts
+
+  main-service:
+    build:
+      context: ./main-service
+      dockerfile: Dockerfile.dev
+    environment:
+      ENABLE_SWAGGER: "true"
+      # Dev-only "act as user" role switcher (D28): needs BOTH flags; never set in compose.yaml / compose.prod.yaml.
+      DEV_ACT_AS_ENABLED: "true"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      APP_ENV: development
+    volumes:
+      - ./main-service:/app
+    healthcheck:
+      start_period: 300s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_HMR_CLIENT_PORT: ${GATEWAY_HTTP_PORT}
+      VITE_USE_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  api-gateway:
+    ports:
+      - "${GATEWAY_HTTP_PORT:-8000}:9080"
+    volumes:
+      - ./api-gateway/apisix.dev.yaml:/gateway-src/apisix.yaml:ro

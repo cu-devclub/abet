@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS submission_issues;
+DROP TABLE IF EXISTS submissions;
+DROP TABLE IF EXISTS course_access;
+DROP TABLE IF EXISTS course_offerings;
+DROP TABLE IF EXISTS courses;
+DROP TABLE IF EXISTS admin_scopes;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS curricula;
+DROP TABLE IF EXISTS departments;

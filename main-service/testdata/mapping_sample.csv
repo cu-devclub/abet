@@ -1,0 +1,6 @@
+course id,course name,semester,user email,user role,upload permission,download permission
+2301173,Calculus I,1,alice@chula.ac.th,Instructor,Yes,Yes
+2301173,Calculus I,1,sam@chula.ac.th,Staff,No,Yes
+2301174,Calculus II,1,alice@chula.ac.th,Instructor,Yes,Yes
+2301174,Calculus II,1,nobody@chula.ac.th,Staff,No,No
+2301180,Linear Algebra,2,,,,

@@ -1,0 +1,475 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{abet-binder}[2025/09/01 ABET binder shared styles]
+
+% ---------- Core packages ----------
+\RequirePackage[a4paper,margin=1in]{geometry}
+\RequirePackage{lmodern}
+\RequirePackage[T1]{fontenc}
+\RequirePackage{tabularx}
+\RequirePackage{ragged2e}
+\RequirePackage{enumitem}
+\RequirePackage{graphicx}
+\RequirePackage{pdfpages}
+\RequirePackage[hidelinks]{hyperref}
+\RequirePackage{tikz}
+\usetikzlibrary{calc}
+\RequirePackage{xparse}
+\RequirePackage{pgffor}
+\pdfsuppresswarningpagegroup=1
+\setcounter{tocdepth}{3}
+
+% ---------- Expected counts helpers ----------
+\providecommand{\RepoRoot}{.}
+\ExplSyntaxOn
+\prop_new:N \g_abet_expected_counts_prop
+\prop_new:N \g_abet_pdf_layout_prop
+\bool_new:N \l__abet_section_should_show_bool
+\tl_new:N \l__abet_tmp_tl
+\tl_new:N \l__abet_tmp_path_tl
+\cs_new_protected:Npn \abet_expected_counts_put:nnn #1#2#3
+  { \prop_gput:Nnn \g_abet_expected_counts_prop {#1/#2} {#3} }
+\cs_new_protected:Npn \abet_expected_counts_if_show:nnn #1#2#3
+  {
+    \bool_set_false:N \l__abet_section_should_show_bool
+    \prop_if_in:NnTF \g_abet_expected_counts_prop {#1/#2}
+      {
+        \int_compare:nNnTF { \prop_item:Nn \g_abet_expected_counts_prop {#1/#2} } > {0}
+          {\bool_set_true:N \l__abet_section_should_show_bool}
+          {\abet_section_has_files:nn {#1}{#2}}
+      }
+      {\abet_section_has_files:nn {#1}{#2}}
+    \bool_if:NT \l__abet_section_should_show_bool {#3}
+  }
+\cs_new_protected:Npn \abet_section_has_files:nn #1#2
+  {
+    \str_case:nnF {#1}
+      {
+        {10-lectures}{\abet_lectures_has_files:n {#2}}
+        {20-assignments}{\abet_assignments_has_files:n {#2}}
+      }
+      {\bool_set_true:N \l__abet_section_should_show_bool}
+  }
+\cs_new_protected:Npn \abet_lectures_has_files:n #1
+  {
+    \int_step_inline:nn {20}
+      {
+        \tl_set:Nx \l__abet_tmp_tl { \padtwo{##1} }
+        \abet_check_path:n { \CourseRoot/10-lectures/week\l__abet_tmp_tl-part01.pdf }
+        \abet_check_path:n { \CourseRoot/10-lectures/week\l__abet_tmp_tl.pdf }
+      }
+  }
+\cs_new_protected:Npn \abet_assignments_has_files:n #1
+  {
+    \abet_check_path:n { \CourseRoot/20-assignments/asg-all-scores.pdf }
+    \abet_check_path:n { \CourseRoot/20-assignments/asg-all-scoresheet.pdf }
+    \int_step_inline:nn {30}
+      {
+        \tl_set:Nx \l__abet_tmp_tl { \padtwo{##1} }
+        \abet_check_path:n { \CourseRoot/20-assignments/asg\l__abet_tmp_tl-instructions.pdf }
+        \abet_check_path:n { \CourseRoot/20-assignments/asg\l__abet_tmp_tl-high.pdf }
+        \abet_check_path:n { \CourseRoot/20-assignments/asg\l__abet_tmp_tl-average.pdf }
+        \abet_check_path:n { \CourseRoot/20-assignments/asg\l__abet_tmp_tl-low.pdf }
+        \abet_check_path:n { \CourseRoot/20-assignments/asg\l__abet_tmp_tl-scores.pdf }
+      }
+  }
+\cs_new_protected:Npn \abet_check_path:n #1
+  {
+    \tl_set:Nx \l__abet_tmp_path_tl {#1}
+    \IfFileExists{\tl_use:N \l__abet_tmp_path_tl}
+      {\bool_set_true:N \l__abet_section_should_show_bool}{}
+  }
+\NewDocumentCommand{\AddExpectedCount}{ m m m }
+  { \abet_expected_counts_put:nnn {#1}{#2}{#3} }
+\NewDocumentCommand{\IfExpectedSection}{ m m +m }
+  { \abet_expected_counts_if_show:nnn {#1}{#2}{#3} }
+\NewDocumentCommand{\AddPdfLayoutOverride}{ m m }
+  { \prop_gput:Nnn \g_abet_pdf_layout_prop {#1} {#2} }
+\cs_new:Npn \abet_pdf_layout_options:nn #1#2
+  {
+    \prop_if_in:NnTF \g_abet_pdf_layout_prop {#1}
+      { \prop_item:Nn \g_abet_pdf_layout_prop {#1} }
+      {#2}
+  }
+\NewDocumentCommand{\PdfLayoutOptions}{ m m }
+  { \abet_pdf_layout_options:nn {#1} {#2} }
+\cs_new_protected:Npn \abet_includepdf_with_options:nn #1#2
+  { \includepdf[#1]{#2} }
+\cs_new_protected:Npn \abet_include_with_layout_if_exists:nn #1#2
+  {
+    \tl_set:Nx \l__abet_tmp_path_tl {#1}
+    \IfFileExists{\tl_use:N \l__abet_tmp_path_tl}
+      {
+        \tl_set:Nn \l__abet_tmp_tl {#2}
+        \prop_get:NVNT \g_abet_pdf_layout_prop \l__abet_tmp_path_tl \l__abet_tmp_tl {}
+        \use:x
+          {
+            \exp_not:N \abet_includepdf_with_options:nn
+            { \exp_not:V \l__abet_tmp_tl }
+            { \exp_not:V \l__abet_tmp_path_tl }
+          }
+      }
+      {}
+  }
+\cs_new_eq:NN \AbetIncludeWithLayoutIfExists \abet_include_with_layout_if_exists:nn
+\cs_new_protected:Npn \abet_expected_counts_load:
+  {
+    \IfFileExists{\RepoRoot/config/expected_counts.tex}
+      {\input{\RepoRoot/config/expected_counts.tex}}{\IfFileExists{\RepoRoot/../config/expected_counts.tex}{\input{\RepoRoot/../config/expected_counts.tex}}{}}
+    \IfFileExists{\RepoRoot/config/pdf_layout_overrides.tex}
+      {\input{\RepoRoot/config/pdf_layout_overrides.tex}}{\IfFileExists{\RepoRoot/../config/pdf_layout_overrides.tex}{\input{\RepoRoot/../config/pdf_layout_overrides.tex}}{}}
+  }
+\AtBeginDocument{\abet_expected_counts_load:}
+\ExplSyntaxOff
+
+% ---------- Header/Footer ----------
+\RequirePackage{fancyhdr}
+\RequirePackage{lastpage}
+\pagestyle{fancy}
+\setlength{\headheight}{14.5pt}
+
+% one-time boolean for probing assignment files
+\newif\ifasghave
+
+% one-time boolean for probing quiz files
+\newif\ifquizhave
+
+% ---------- Utilities ----------
+\newcommand{\Probe}[1]{\typeout{[BINDER] probing: #1}}
+\newcommand{\padtwo}[1]{\ifnum#1<10 0#1\else #1\fi}
+
+\providecommand{\LectureIncludeOptsFast}{pages=1,landscape=true,frame=true,pagecommand={\thispagestyle{fancy}},scale=0.75}
+\providecommand{\LectureIncludeOptsFinal}{pages=-,nup=2x2,landscape=true,frame=true,pagecommand={\thispagestyle{fancy}},scale=0.85}
+
+% -- ABET syllabus include (prefer rendered .tex; fallback to the original PDF)
+\newcommand{\IncludeABETFromData}{%
+  \IfFileExists{\CourseRoot/01-syllabus/syllabus-abet.tex}{%
+    \input{\CourseRoot/01-syllabus/syllabus-abet.tex}%
+  }{%
+    \IncludeWithLayoutIfExists{\CourseRoot/01-syllabus/syllabus-abet.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+  }%
+}
+
+% ---------- Running header/foot layout ----------
+\fancyhf{} % clear
+\fancyhead[C]{\textbf{\leftmark}\ifx\rightmark\empty\else\ /\ \rightmark\fi}
+% These commands are expected from course-meta.tex; provide safe fallbacks
+\providecommand{\CourseName}{Course Name}
+\providecommand{\CourseCode}{CODE}
+\providecommand{\CourseInstructorsShort}{Instructor(s)}
+\fancyfoot[L]{\CourseName\ (\CourseCode)\quad|\quad \CourseInstructorsShort}
+\fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\newcommand{\SetHeaderMarks}[2]{\markboth{#1}{#2}}
+
+% ---------- Cover: full-bleed image + movable title block ----------
+% \CourseCoverWithImage[<y>][<x>][<width fraction>]{<file>}
+\NewDocumentCommand{\CourseCoverWithImage}{ O{0cm} O{0cm} O{.78} m }{%
+  \clearpage
+  \thispagestyle{empty}
+  \AddToShipoutPictureBG*{%
+    \AtPageLowerLeft{\includegraphics[page=1,width=\paperwidth,height=\paperheight]{#4}}%
+  }
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[inner xsep=0pt, inner ysep=0pt, text width=#3\paperwidth, align=center]
+      at ($ (current page.center) + (#2,#1) $) {%
+        {\fontsize{48}{56}\selectfont\bfseries\color{black}\CourseCode\par}
+        \vspace{0.5em}
+        {\fontsize{36}{44}\selectfont\bfseries\color{black}\CourseName\par}
+        \ifcsname SemesterLabel\endcsname
+          \vspace{0.4em}{\Large\color{black}\SemesterLabel\par}
+        \fi
+      };
+  \end{tikzpicture}
+  \clearpage
+  \ClearShipoutPictureBG
+}
+
+% ---------- Header-page macros that write to ToC ----------
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{V}{>{\RaggedRight\arraybackslash}X}
+
+\newcommand{\BigHeaderPage}[2][]{%
+  \clearpage\phantomsection\addcontentsline{toc}{section}{#2}%
+  \SetHeaderMarks{#2}{}%
+  \thispagestyle{fancy}
+  \begin{center}\vspace*{0.28\textheight}
+    {\fontsize{36}{44}\selectfont\bfseries #2\par}
+    \if\relax\detokenize{#1}\relax\else\vspace{0.75em}{\Large #1\par}\fi
+    \vfill
+  \end{center}
+}
+\newcommand{\SubHeaderPage}[2][]{%
+  \clearpage\phantomsection\addcontentsline{toc}{subsection}{#2}%
+  \markright{#2}\thispagestyle{fancy}
+  \begin{center}\vspace*{0.30\textheight}
+    {\Large\bfseries #2\par}
+    \if\relax\detokenize{#1}\relax\else\vspace{0.6em}{\large #1\par}\fi
+    \vfill
+  \end{center}
+}
+\newcommand{\SubSubHeaderPage}[2][]{%
+  \clearpage\phantomsection\addcontentsline{toc}{subsubsection}{#2}%
+  \markright{#2}\thispagestyle{fancy}
+  \begin{center}\vspace*{0.32\textheight}
+    {\large\bfseries #2\par}
+    \if\relax\detokenize{#1}\relax\else\vspace{0.5em}{\normalsize #1\par}\fi
+    \vfill
+  \end{center}
+}
+% Silent version: writes ToC + header marks, but no visible heading
+\newcommand{\SubHeaderPageSilent}[1]{%
+  \clearpage
+  \phantomsection
+  \addcontentsline{toc}{subsection}{#1}%
+  \markright{#1}%
+  \thispagestyle{fancy}%
+}
+% Label + indented block (no bullets) — fixed
+\newcommand{\FieldBlock}[2]{%
+  \par\medskip
+  \noindent\textbf{#1:}\par
+  \begingroup
+    \leftskip=1.5em
+    \parindent=0pt   % <-- make all lines align
+    #2\par
+  \endgroup
+}
+% Label + indented enumerated block with tight spacing (matches FieldBlock)
+\newcommand{\FieldEnumBlock}[2]{%
+  \par\medskip
+  \noindent\textbf{#1:}\par
+  \begingroup
+    \leftskip=1.5em
+    \parindent=0pt
+    \begin{enumerate}[itemsep=0pt, topsep=0pt, parsep=0pt, partopsep=0pt]
+      #2
+    \end{enumerate}
+  \endgroup
+}
+
+% ---------- Include helpers ----------
+\newcommand{\IncludeIfExists}[2]{%
+  \IfFileExists{#1}{\includepdf[#2]{#1}}{}%
+}
+\NewDocumentCommand{\IncludeWithLayoutIfExists}{ m m }
+  { \AbetIncludeWithLayoutIfExists{#1}{#2} }
+
+
+% Textbook include with fast/slow behavior
+% \TextbookInclude{<file>}[<pages>][<scale>]
+\NewDocumentCommand{\TextbookInclude}{ m O{-} O{0.85} }{%
+  \IfFileExists{#1}{%
+    \iffastcompile
+      \IncludeWithLayoutIfExists{#1}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.75}%
+    \else
+      \IncludeWithLayoutIfExists{#1}{pages=#2,pagecommand={\thispagestyle{fancy}},scale=#3}%
+    \fi
+  }{}%
+}
+
+% Exam include with fast/slow behavior
+\newcommand{\ExamInclude}[1]{%
+  \iffastcompile
+    \IncludeWithLayoutIfExists{#1}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+  \else
+    \IncludeWithLayoutIfExists{#1}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+  \fi
+}
+
+% ---------- AUTO BLOCKS ----------
+% Textbook: tries textbook-part01..99
+\newcommand{\TextbookBlock}[1]{% #1 = folder path like \CourseRoot/02-textbook
+  \foreach \n in {1,...,99}{%
+    \edef\pp{\padtwo{\n}}%
+    \edef\thisfile{#1/textbook-part\pp.pdf}%
+    \TextbookInclude{\thisfile}%
+  }%
+}
+
+% Lectures: include weekNN-part01..09 (4-up in final, first page in fast)
+\newcommand{\LectureWeekBlock}[1]{% #1 numeric 1..20
+  \begingroup
+    \edef\wk{\padtwo{#1}}%
+    \IfFileExists{\CourseRoot/10-lectures/week\wk-part01.pdf}{%
+      \SubHeaderPage{Lecture Slides Week \number\numexpr#1\relax}%
+      \foreach \p in {1,...,9}{%
+        \edef\pp{\padtwo{\p}}%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/10-lectures/week\wk-part\pp.pdf}{pages=1,landscape=true,frame=true,pagecommand={\thispagestyle{fancy}},scale=0.75}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/10-lectures/week\wk-part\pp.pdf}{pages=-,nup=2x2,landscape=true,frame=true,pagecommand={\thispagestyle{fancy}},scale=0.85}%
+        \fi
+      }%
+    }{}%
+  \endgroup
+}
+
+
+% Assignments: show the block if ANY file exists; include pieces conditionally
+\newcommand{\AssignmentBlock}[1]{% #1 = numeric 1..30
+  \begingroup
+    \edef\anum{\number\numexpr#1\relax}
+    \edef\aXX{\padtwo{\anum}}
+
+    % ---- probe for any file ----
+    \asghavefalse
+    \IfFileExists{\CourseRoot/20-assignments/asg\aXX-instructions.pdf}{\asghavetrue}{}%
+    \IfFileExists{\CourseRoot/20-assignments/asg\aXX-high.pdf}{\asghavetrue}{}%
+    \IfFileExists{\CourseRoot/20-assignments/asg\aXX-average.pdf}{\asghavetrue}{}%
+    \IfFileExists{\CourseRoot/20-assignments/asg\aXX-low.pdf}{\asghavetrue}{}%
+    \IfFileExists{\CourseRoot/20-assignments/asg\aXX-scores.pdf}{\asghavetrue}{}%
+
+    \ifasghave
+      \SubHeaderPage{Assignment \anum}%
+
+      % ---- Instructions (optional) ----
+      \IfFileExists{\CourseRoot/20-assignments/asg\aXX-instructions.pdf}{%
+        \SubSubHeaderPage{Assignment \anum\ Instructions}%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-instructions.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-instructions.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+
+      % ---- High (optional) ----
+      \IfFileExists{\CourseRoot/20-assignments/asg\aXX-high.pdf}{%
+        \SubSubHeaderPage{Assignment \anum\ High Sample}%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-high.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-high.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+
+      % ---- Average (optional) ----
+      \IfFileExists{\CourseRoot/20-assignments/asg\aXX-average.pdf}{%
+        \SubSubHeaderPage{Assignment \anum\ Average Sample}%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-average.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-average.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+
+      % ---- Low (optional) ----
+      \IfFileExists{\CourseRoot/20-assignments/asg\aXX-low.pdf}{%
+        \SubSubHeaderPage{Assignment \anum\ Low Sample}%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-low.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-low.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+
+      % ---- Scores (optional) ----
+      \IfFileExists{\CourseRoot/20-assignments/asg\aXX-scores.pdf}{%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-scores.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/20-assignments/asg\aXX-scores.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+
+    \fi
+  \endgroup
+}
+
+% Quizzes: show the block if ANY file exists; include pieces conditionally
+\newcommand{\QuizBlock}[1]{% #1 = numeric 1..30
+  \begingroup
+    \edef\qnum{\number\numexpr#1\relax}
+    \edef\qXX{\padtwo{\qnum}}
+
+    % ---- probe for any file ----
+    \quizhavefalse
+    \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-instructions.pdf}{\quizhavetrue}{}%
+    \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-high.pdf}{\quizhavetrue}{}%
+    \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-average.pdf}{\quizhavetrue}{}%
+    \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-low.pdf}{\quizhavetrue}{}%
+    \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-scores.pdf}{\quizhavetrue}{}%
+
+    \ifquizhave
+      \SubHeaderPage{Quiz \qnum}%
+
+      % ---- Instructions (optional) ----
+      \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-instructions.pdf}{%
+        \SubSubHeaderPage{Quiz \qnum\ Instructions}%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-instructions.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-instructions.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+
+      % ---- High (optional) ----
+      \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-high.pdf}{%
+        \SubSubHeaderPage{Quiz \qnum\ High Sample}%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-high.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-high.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+
+      % ---- Average (optional) ----
+      \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-average.pdf}{%
+        \SubSubHeaderPage{Quiz \qnum\ Average Sample}%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-average.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-average.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+
+      % ---- Low (optional) ----
+      \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-low.pdf}{%
+        \SubSubHeaderPage{Quiz \qnum\ Low Sample}%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-low.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-low.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+
+      % ---- Scores (optional) ----
+      \IfFileExists{\CourseRoot/30-quizzes/quiz\qXX-scores.pdf}{%
+        \iffastcompile
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-scores.pdf}{pages=1,pagecommand={\thispagestyle{fancy}},scale=0.9}%
+        \else
+          \IncludeWithLayoutIfExists{\CourseRoot/30-quizzes/quiz\qXX-scores.pdf}{pages=-,pagecommand={\thispagestyle{fancy}}}%
+        \fi
+      }{}%
+    \fi
+  \endgroup
+}
+
+% Exams
+\NewDocumentCommand{\IfExamHasContent}{ m +m }{%
+  \begingroup
+  \newif\ifexamcontent
+  \examcontentfalse
+  \IfFileExists{\CourseRoot/40-exams/#1-scores.pdf}{\examcontenttrue}{}%
+  \IfFileExists{\CourseRoot/40-exams/#1-instructions.pdf}{\examcontenttrue}{}%
+  \IfFileExists{\CourseRoot/40-exams/#1-high.pdf}{\examcontenttrue}{}%
+  \IfFileExists{\CourseRoot/40-exams/#1-average.pdf}{\examcontenttrue}{}%
+  \IfFileExists{\CourseRoot/40-exams/#1-low.pdf}{\examcontenttrue}{}%
+  \ifexamcontent
+    \endgroup #2%
+  \else
+    \endgroup
+  \fi
+}
+\newcommand{\ExamBlock}[2]{% #1 label, #2 basename (midterm/final)
+  \IfFileExists{\CourseRoot/40-exams/#2-scores.pdf}{%
+    \SubHeaderPage{#1\ Scoresheet}\ExamInclude{\CourseRoot/40-exams/#2-scores.pdf}}{}%
+  \IfFileExists{\CourseRoot/40-exams/#2-instructions.pdf}{%
+    \SubHeaderPage{#1\ Instructions}\ExamInclude{\CourseRoot/40-exams/#2-instructions.pdf}}{}%
+  \IfFileExists{\CourseRoot/40-exams/#2-high.pdf}{%
+    \SubHeaderPage{#1\ High Sample}\ExamInclude{\CourseRoot/40-exams/#2-high.pdf}}{}%
+  \IfFileExists{\CourseRoot/40-exams/#2-average.pdf}{%
+    \SubHeaderPage{#1\ Average Sample}\ExamInclude{\CourseRoot/40-exams/#2-average.pdf}}{}%
+  \IfFileExists{\CourseRoot/40-exams/#2-low.pdf}{%
+    \SubHeaderPage{#1\ Low Sample}\ExamInclude{\CourseRoot/40-exams/#2-low.pdf}}{}%
+}

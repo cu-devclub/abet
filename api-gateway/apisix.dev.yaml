@@ -1,0 +1,119 @@
+# APISIX standalone routes (dev: vite dev server :5173, websocket for HMR). See README.md for the explanation of every route.
+upstreams:
+  - id: auth-service
+    type: roundrobin
+    nodes:
+      "auth-service:8080": 1
+    timeout: {connect: 60, send: 300, read: 300}
+  - id: main-service
+    type: roundrobin
+    nodes:
+      "main-service:8080": 1
+    timeout: {connect: 60, send: 300, read: 300}
+  - id: frontend
+    type: roundrobin
+    nodes:
+      "frontend:5173": 1
+    timeout: {connect: 60, send: 300, read: 300}
+
+# Always on and cheap: APISIX metrics (exporter on :9091 inside the network, see config.yaml). Tracing is added by
+# the entrypoint only when monitoring is enabled.
+global_rules:
+  - id: prometheus
+    plugins:
+      prometheus:
+        prefer_name: true
+  # @@MON_GLOBAL_RULES@@
+
+routes:
+  # @@MON_ROUTES@@
+
+  # 1. Public auth endpoints: an ALLOWLIST of exactly three paths, no authentication.
+  #    /public/api/v1/auth/google/login -> auth-service /api/v1/auth/google/login
+  - id: public-auth-get
+    uris: [/public/api/v1/auth/google/login, /public/api/v1/auth/google/callback]
+    methods: [GET]
+    priority: 100
+    upstream_id: auth-service
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/public/(.*)", "/$1"]
+  - id: public-auth-logout
+    uri: /public/api/v1/auth/logout
+    methods: [POST]
+    priority: 100
+    upstream_id: auth-service
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/public/(.*)", "/$1"]
+
+  # 1b. Everything else under /public (and /auth that is not /auth/api/*) is NOT exposed: 404 JSON from the gateway.
+  #     (auth-service /healthz, /readyz, /metrics, /internal/*, main-service /internal/*, /metrics, ... stay docker-network only.)
+  - id: public-not-found
+    uris: [/public, /public/*]
+    priority: 50
+    plugins:
+      fault-injection:
+        abort:
+          http_status: 404
+          body: '{"error":"not found"}'
+          headers:
+            Content-Type: application/json
+  - id: auth-not-found
+    uris: [/auth, /auth/*]
+    priority: 50
+    plugins:
+      fault-injection:
+        abort:
+          http_status: 404
+          body: '{"error":"not found"}'
+          headers:
+            Content-Type: application/json
+
+  # /grafana and /kibana are never the SPA: 404 JSON unless monitoring is enabled (its routes above have priority 100 and win).
+  - id: monitoring-not-found
+    uris: [/grafana, /grafana/*, /kibana, /kibana/*]
+    priority: 50
+    plugins:
+      fault-injection:
+        abort:
+          http_status: 404
+          body: '{"error":"not found"}'
+          headers:
+            Content-Type: application/json
+
+  # 2. Authenticated API -> main-service. forward-auth asks auth-service /internal/v1/auth/verify using the
+  #    session cookie; on 200 the X-User-Id / X-User-Email response headers are SET on the upstream request
+  #    (overwriting anything the client sent). Any other status is returned to the client as-is (401).
+  - id: main-api
+    uri: /auth/api/*
+    priority: 100
+    upstream_id: main-service
+    plugins:
+      # Runs before forward-auth (priority 10000 > 2002): drop client-supplied identity headers.
+      # (proxy-rewrite cannot be used for this: it runs AFTER forward-auth and would delete the verified headers.)
+      serverless-pre-function:
+        phase: rewrite
+        functions:
+          - "return function(conf, ctx) ngx.req.clear_header('X-User-Id'); ngx.req.clear_header('X-User-Email') end"
+      forward-auth:
+        uri: http://auth-service:8080/internal/v1/auth/verify
+        request_method: GET
+        request_headers: ["Cookie", "traceparent", "tracestate"]
+        upstream_headers: ["X-User-Id", "X-User-Email"]
+        client_headers: ["Content-Type"]
+        timeout: 3000
+        keepalive: true
+        status_on_error: 503
+      proxy-rewrite:
+        regex_uri: ["^/auth/(.*)", "/$1"]
+
+  # 3. Everything else -> frontend (dev: vite dev server :5173, websocket for HMR).
+  - id: frontend
+    uri: /*
+    priority: 0
+    enable_websocket: true
+    upstream_id: frontend
+
+# @@MON_METADATA@@
+#END

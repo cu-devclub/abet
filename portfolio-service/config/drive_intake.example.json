@@ -1,0 +1,33 @@
+{
+  "enabled": false,
+  "backend": "local_sync",
+  "program_workspace": "programs/ice-ay2025",
+  "drive_root": "/Users/YOUR_NAME/Library/CloudStorage/GoogleDrive-YOUR_EMAIL/My Drive/CourseDisplay Intake/ICE",
+  "mode": "build-course",
+  "stable_seconds": 30,
+  "sync_staff_config_from_drive": true,
+  "publish_reports_to_drive": true,
+  "publish_outputs_to_drive": true,
+  "drive_folders": {
+    "incoming": "incoming",
+    "processing": "processing",
+    "processed": "processed",
+    "failed": "failed",
+    "reports": "reports",
+    "outputs": "outputs",
+    "staff_config": "staff-config"
+  },
+  "notifications": {
+    "slack_channel": "",
+    "email_to": []
+  },
+  "google_drive_api": {
+    "enabled": false,
+    "auth_mode": "oauth_user",
+    "root_folder_id": "",
+    "service_account_json_env": "GOOGLE_APPLICATION_CREDENTIALS",
+    "oauth_client_secret_json_env": "GOOGLE_OAUTH_CLIENT_SECRET",
+    "oauth_token_path": "programs/ice-ay2025/config/staff/drive_oauth_token.json",
+    "supports_all_drives": true
+  }
+}

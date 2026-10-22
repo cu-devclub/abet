@@ -1,0 +1,12 @@
+  # --- Tracing (rendered only when MONITORING_ENABLED=true): spans -> APM Server; injects `traceparent` upstream ---
+  # Runs before forward-auth (plugin priority 12009 > 2002), so /internal/v1/auth/verify joins the trace.
+  - id: opentelemetry
+    plugins:
+      opentelemetry:
+        sampler:
+          name: parent_base
+          options:
+            root:
+              name: trace_id_ratio
+              options:
+                fraction: @@OTEL_SAMPLE_RATIO@@

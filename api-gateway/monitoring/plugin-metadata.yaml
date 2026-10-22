@@ -1,0 +1,14 @@
+# --- opentelemetry exporter settings (rendered only when MONITORING_ENABLED=true) ---
+plugin_metadata:
+  - id: opentelemetry
+    resource:
+      service.name: api-gateway
+      deployment.environment: "@@DEPLOY_ENV@@"
+    collector:
+      address: apm-server:8200
+      request_timeout: 3
+      request_headers:
+        Authorization: "Bearer @@APM_SECRET_TOKEN@@"
+    batch_span_processor:
+      drop_on_queue_full: true
+      max_queue_size: 2048

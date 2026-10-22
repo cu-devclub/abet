@@ -1,0 +1,148 @@
+openapi: 3.0.3
+info:
+  title: ABET Auth Service
+  version: 1.0.0
+  description: |
+    Google OAuth login, session cookies and the forward-auth verify endpoint.
+
+    Browser paths are prefixed with `/public` by the API gateway (which strips the prefix before
+    forwarding), e.g. the browser calls `/public/api/v1/auth/google/login`. The paths below are
+    the service-internal paths (without `/public`).
+servers:
+  - url: http://localhost:8080
+    description: Direct access inside the docker network
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      tags: [health]
+      responses:
+        "200":
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, example: alive}
+                  time: {type: string, format: date-time}
+  /readyz:
+    get:
+      summary: Readiness probe (pings the database)
+      tags: [health]
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, example: ready}
+                  database: {type: string, example: up}
+                  uptime: {type: string}
+        "503":
+          description: Database unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, example: not_ready}
+                  database: {type: string, example: down}
+  /api/v1/auth/google/login:
+    get:
+      summary: Start Google login
+      description: |
+        Creates a random state and PKCE (S256) verifier, stores them in the signed, HttpOnly,
+        SameSite=Lax cookie `abet_oauth` (Path `/public/api/v1/auth`, 10 minutes) and redirects to Google
+        with scope `openid email profile`, `prompt=select_account` and `hd=<first allowed domain>`.
+      tags: [auth]
+      parameters:
+        - name: redirect
+          in: query
+          required: false
+          description: Relative path to open after login. Must start with a single `/` and contain no backslash; otherwise `/` is used.
+          schema: {type: string, example: /portfolios}
+      responses:
+        "302":
+          description: Redirect to Google
+          headers:
+            Location: {schema: {type: string}}
+            Set-Cookie: {schema: {type: string}, description: "abet_oauth"}
+        "503":
+          description: Google OAuth is not configured (GOOGLE_CLIENT_ID empty)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorResponse"}
+              example: {error: google oauth not configured}
+  /api/v1/auth/google/callback:
+    get:
+      summary: Google OAuth callback
+      description: |
+        Validates state (cookie vs query), exchanges the code with PKCE, verifies the ID token
+        (issuer, audience, expiry), requires `email_verified=true` and an email domain exactly equal to one of
+        ALLOWED_EMAIL_DOMAINS, then calls main-service login-sync. On success a session row is inserted and
+        the cookie `abet_session` (JWT HS256; HttpOnly; SameSite=Lax; Path `/`; Max-Age = SESSION_TTL_HOURS) is set.
+        Always responds with a 302:
+        success -> `PUBLIC_BASE_URL + redirect`;
+        domain rejected / unverified email / not provisioned -> `PUBLIC_BASE_URL/login?error=access_denied`;
+        any other failure -> `PUBLIC_BASE_URL/login?error=login_failed`.
+      tags: [auth]
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema: {type: string}
+        - name: state
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        "302":
+          description: Redirect back into the application
+          headers:
+            Location: {schema: {type: string}}
+            Set-Cookie: {schema: {type: string}, description: "abet_session (success) and abet_oauth (cleared)"}
+  /api/v1/auth/logout:
+    post:
+      summary: Log out
+      description: Revokes the session referenced by a valid `abet_session` cookie and clears the cookie. Always 204.
+      tags: [auth]
+      responses:
+        "204":
+          description: Logged out (idempotent)
+          headers:
+            Set-Cookie: {schema: {type: string}, description: "abet_session cleared (Max-Age=0)"}
+  /internal/v1/auth/verify:
+    get:
+      summary: Forward-auth verification (INTERNAL, used by the API gateway)
+      description: |
+        Internal route: reachable only inside the docker network (the gateway never routes `/internal`).
+        Reads the `abet_session` cookie, verifies the JWT signature and expiry, loads the session row
+        and checks it is neither revoked nor expired. Not intended for browsers.
+      tags: [auth]
+      parameters:
+        - name: abet_session
+          in: cookie
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Authenticated; identity returned in response headers (empty body)
+          headers:
+            X-User-Id: {schema: {type: string, format: uuid}}
+            X-User-Email: {schema: {type: string}}
+        "401":
+          description: Missing, invalid, revoked or expired session
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorResponse"}
+              example: {error: unauthenticated}
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: {type: string}

@@ -1,0 +1,1300 @@
+openapi: 3.0.3
+info:
+  title: ABET main-service API
+  version: 1.0.0
+  description: |
+    Domain API of the ABET Course Portfolio Management System.
+    Browser paths are prefixed with `/auth` by the gateway (prefix stripped before reaching this service);
+    the paths below are the service-internal ones. All `/api/v1/*` calls need the `X-User-Id` header that the
+    gateway forward-auth injects. `/internal/v1/*` needs `X-Internal-Token`.
+    This file lists what foundation task T02 implements; later tasks append their paths.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: me
+  - name: departments
+  - name: curricula
+  - name: users
+  - name: offerings
+  - name: covers
+  - name: submissions
+  - name: portfolios
+  - name: templates
+  - name: internal
+  - name: health
+
+paths:
+  /api/v1/config:
+    get:
+      tags: [me]
+      summary: Size limits and build timeout from the environment (any authenticated user)
+      description: The frontend reads the limits here instead of hard-coding them.
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AppConfig" }
+              example: { max_upload_mb: 300, max_cover_mb: 20, max_import_mb: 5, build_timeout_minutes: 60 }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/me:
+    get:
+      tags: [me]
+      summary: Current user and capabilities
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeResponse" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/dev/act-as/users:
+    get:
+      tags: [dev]
+      summary: "DEV ONLY (404 unless DEV_ACT_AS_ENABLED=true and APP_ENV=development): users a super_admin can act as"
+      description: All users except the real caller, sorted by role (super_admin, admin, instructor, staff) then email, max 500. Real caller must be super_admin.
+      security: [{ userHeader: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Case-insensitive substring of email or name }
+        - { name: role, in: query, schema: { type: string, enum: [super_admin, admin, instructor, staff] } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: "#/components/schemas/ActAsUser" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { description: Feature is off }
+
+  /api/v1/dev/act-as:
+    post:
+      tags: [dev]
+      summary: "DEV ONLY: start acting as a user (sets the HttpOnly abet_act_as cookie, Path=/auth/api)"
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: string, format: uuid }
+      responses:
+        "204": { description: Cookie set }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { description: Unknown user, or feature is off }
+    delete:
+      tags: [dev]
+      summary: "DEV ONLY: stop acting (clears the abet_act_as cookie; idempotent)"
+      security: [{ userHeader: [] }]
+      responses:
+        "204": { description: Cookie cleared }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { description: Feature is off }
+
+  /api/v1/departments:
+    get:
+      tags: [departments]
+      summary: "List departments (super_admin and admin: all; instructor and staff: only their own department, empty if they have none)"
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Department" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [departments]
+      summary: Create a department (super_admin)
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateDepartmentRequest" }
+      responses:
+        "201":
+          description: Created (code is trimmed and upper-cased)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Department" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/departments/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [departments]
+      summary: Update a department (super_admin)
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateDepartmentRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Department" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [departments]
+      summary: Delete a department (super_admin)
+      security: [{ userHeader: [] }]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Department is referenced by curricula or users
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/curricula:
+    get:
+      tags: [curricula]
+      summary: "List curricula (super_admin and admin: all; instructor and staff: only their own curriculum, else the curricula of their department, empty if neither)"
+      security: [{ userHeader: [] }]
+      parameters:
+        - name: department_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Curriculum" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [curricula]
+      summary: Create a curriculum (super_admin)
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCurriculumRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Curriculum" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/curricula/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [curricula]
+      summary: Update a curriculum (super_admin)
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateCurriculumRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Curriculum" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [curricula]
+      summary: Delete a curriculum (super_admin); also removes its cover file
+      security: [{ userHeader: [] }]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Curriculum is referenced by users or courses
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/users:
+    get:
+      tags: [users]
+      summary: "List users (super_admin: all; admin: users in scope)"
+      security: [{ userHeader: [] }]
+      parameters:
+        - name: search
+          in: query
+          description: Case-insensitive substring of name or e-mail
+          schema: { type: string }
+        - name: role
+          in: query
+          schema: { $ref: "#/components/schemas/Role" }
+        - name: department_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [users]
+      summary: Create (pre-provision) a user
+      description: |
+        E-mail is lower-cased and must be in ALLOWED_EMAIL_DOMAINS. A curriculum implies its department
+        (auto-filled when department_id is null). Admins may only create instructor/staff users inside their scope
+        and may not set admin_scope.
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateUserRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/users/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [users]
+      summary: Update a user (e-mail is immutable)
+      description: |
+        Fields are optional; `department_id` / `curriculum_id` distinguish absent from explicit null.
+        Changing the role away from admin clears admin_scopes. Nobody may change their own role.
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateUserRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [users]
+      summary: Delete a user
+      security: [{ userHeader: [] }]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Cannot delete your own account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/v1/curricula/{id}/cover:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    put:
+      tags: [covers]
+      summary: Upload or replace the cover PDF (super_admin, or admin with the curriculum in scope)
+      description: Stored at `covers/<id>.pdf`. The file must start with `%PDF-` and be at most MAX_COVER_MB.
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: The curriculum with its cover metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Curriculum" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+    get:
+      tags: [covers]
+      summary: Preview or download the cover PDF
+      description: |
+        `Content-Type: application/pdf`, `Cache-Control: no-cache`, `X-Frame-Options: SAMEORIGIN` (the frontend embeds it in an iframe).
+        `?download=1` switches `Content-Disposition` to attachment; other query parameters (e.g. `?v=`) are ignored.
+      security: [{ userHeader: [] }]
+      parameters:
+        - name: download
+          in: query
+          schema: { type: string, enum: ["1", "true"] }
+      responses:
+        "200":
+          description: The PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [covers]
+      summary: Remove the cover
+      security: [{ userHeader: [] }]
+      responses:
+        "204": { description: Deleted (also when there was no cover) }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/offerings:
+    get:
+      tags: [offerings]
+      summary: List offerings of an academic year (super_admin / admin; admins see their scope only)
+      security: [{ userHeader: [] }]
+      parameters:
+        - { name: academic_year, in: query, required: true, schema: { type: integer, minimum: 2000, maximum: 2200 } }
+        - { name: department_id, in: query, schema: { type: string, format: uuid } }
+        - { name: curriculum_id, in: query, schema: { type: string, format: uuid } }
+        - { name: semester, in: query, schema: { type: integer, enum: [1, 2, 3] } }
+        - { name: search, in: query, description: Substring of course code or name, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Offering" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [offerings]
+      summary: Create an offering (upserts the course by curriculum + code; an existing course gets the new name)
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateOfferingRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Offering" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/offerings/years:
+    get:
+      tags: [offerings]
+      summary: Distinct academic years (newest first) including the current year (any authenticated user)
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, current]
+                properties:
+                  items: { type: array, items: { type: integer } }
+                  current: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/offerings/bulk-delete:
+    post:
+      tags: [offerings]
+      summary: Delete several offerings (all-or-nothing authorization); also removes their submission files
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids: { type: array, minItems: 1, maxItems: 1000, items: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: integer }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/offerings/import/preview:
+    post:
+      tags: [offerings]
+      summary: Preview the mapping CSV import (nothing is written, the file is never stored)
+      security: [{ userHeader: [] }]
+      requestBody:
+        $ref: "#/components/requestBodies/ImportForm"
+      responses:
+        "200":
+          description: The plan (row errors are reported inside `errors`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImportPlan" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+  /api/v1/offerings/import/apply:
+    post:
+      tags: [offerings]
+      summary: Apply the mapping CSV import in one transaction (the plan is recomputed server-side)
+      security: [{ userHeader: [] }]
+      requestBody:
+        $ref: "#/components/requestBodies/ImportForm"
+      responses:
+        "200":
+          description: Applied (`applied` is true)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImportPlan" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "422":
+          description: The CSV has row errors; nothing was applied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImportPlan" }
+
+  /api/v1/offerings/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [offerings]
+      summary: Edit an offering or move it to another course or curriculum (old and new curriculum must be in scope)
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateOfferingRequest" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Offering" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [offerings]
+      summary: Delete an offering (cascades submissions and removes their files; orphan courses are deleted)
+      security: [{ userHeader: [] }]
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/offerings/{id}/access:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [offerings]
+      summary: Access list of an offering (explicit rows + default staff entries; admins are never listed)
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/AccessEntry" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/offerings/{id}/access/{user_id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+      - { name: user_id, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [offerings]
+      summary: Grant or change manual access (target must be an instructor or staff user the caller can see)
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [can_upload, can_download]
+              properties:
+                can_upload: { type: boolean }
+                can_download: { type: boolean }
+      responses:
+        "200":
+          description: OK (source manual)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessEntry" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [offerings]
+      summary: Remove an explicit access row
+      security: [{ userHeader: [] }]
+      responses:
+        "204": { description: Removed }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/portfolios:
+    get:
+      tags: [portfolios]
+      summary: Course Portfolios page rows (only offerings the caller may view; one query for rows + latest submission)
+      security: [{ userHeader: [] }]
+      parameters:
+        - { name: academic_year, in: query, schema: { type: integer } }
+        - { name: department_id, in: query, schema: { type: string, format: uuid } }
+        - { name: curriculum_id, in: query, schema: { type: string, format: uuid } }
+        - { name: semester, in: query, schema: { type: integer, enum: [1, 2, 3] } }
+        - { name: search, in: query, description: "course code or name, case-insensitive substring", schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/PortfolioRow" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/portfolios/download:
+    post:
+      tags: [portfolios]
+      summary: Zip of the newest generated PDFs, streamed (MISSING.txt lists unavailable, forbidden or unknown offerings)
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [offering_ids]
+              properties:
+                offering_ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 1000
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: "ABET_Course_Portfolios_<year or selected>.zip"
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/offerings/{id}/submissions:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [submissions]
+      summary: Upload a portfolio zip (validated immediately; status invalid or queued)
+      description: |
+        Multipart field "file" (a zip, at most MAX_UPLOAD_MB). The file is spooled to a temp file, validated against
+        SRS section 7 and only then stored in the object store. Errors make the submission "invalid" (nothing is stored or queued); otherwise it is "queued" and a PDF
+        build job is published. If the queue is unreachable the answer is still 201 with status "failed" and one
+        QUEUE_UNAVAILABLE issue.
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: Created (with issues)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Submission" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+    get:
+      tags: [submissions]
+      summary: Upload history, newest first (issues are [] here)
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Submission" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/offerings/{id}/portfolio.pdf:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [portfolios]
+      summary: Newest generated PDF (attachment named <course_code>_<year>_S<semester>_portfolio.pdf; supports Range)
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/submissions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [submissions]
+      summary: One submission with its issues
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Submission" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/templates/instructor-package.zip:
+    get:
+      tags: [templates]
+      summary: The instructor package folder as a zip (top folder course-id-course-name/), any authenticated user
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: Zip
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/templates/course-instructor-mapping.csv:
+    get:
+      tags: [templates]
+      summary: Sample mapping CSV (header + 2 example rows)
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv; charset=utf-8:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+
+  /internal/v1/auth/login-sync:
+    post:
+      tags: [internal]
+      summary: Record a Google login for a pre-provisioned user (auth-service only)
+      security: [{ internalToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginSyncRequest" }
+      responses:
+        "200":
+          description: User is provisioned; name, picture and last_login_at were updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginSyncResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: E-mail is not provisioned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: not provisioned }
+
+  /healthz:
+    get:
+      tags: [health]
+      summary: Liveness probe
+      responses:
+        "200": { description: Alive }
+  /readyz:
+    get:
+      tags: [health]
+      summary: Readiness probe (pings the database and the object store)
+      description: >
+        The 200 body also carries `build_queue` ({consumers, messages, checked_at}, or {status: unknown} before the first
+        check). Zero consumers does not make the service unready: uploads wait in the queue and the build timeout is the backstop.
+      responses:
+        "200": { description: Ready }
+        "503": { description: Database or object storage unavailable }
+  /metrics:
+    get:
+      tags: [health]
+      summary: Prometheus metrics
+      responses:
+        "200": { description: Prometheus text format }
+
+components:
+  securitySchemes:
+    userHeader:
+      type: apiKey
+      in: header
+      name: X-User-Id
+      description: Set by the gateway forward-auth from the verified session.
+    internalToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  requestBodies:
+    ImportForm:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file, curriculum_id, academic_year]
+            properties:
+              file: { type: string, format: binary, description: "CSV, UTF-8 (BOM allowed), at most MAX_IMPORT_MB (default 5 MB), see GET /api/v1/config" }
+              curriculum_id: { type: string, format: uuid }
+              academic_year: { type: integer, minimum: 2000, maximum: 2200 }
+
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthenticated:
+      description: Missing/invalid X-User-Id or token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: unauthenticated }
+    Forbidden:
+      description: Not allowed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: forbidden }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Duplicate or referenced entity
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+    TooLarge:
+      description: Upload exceeds the size limit
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    AppConfig:
+      type: object
+      required: [max_upload_mb, max_cover_mb, max_import_mb, build_timeout_minutes]
+      properties:
+        max_upload_mb: { type: integer, example: 300 }
+        max_cover_mb: { type: integer, example: 20 }
+        max_import_mb: { type: integer, example: 5 }
+        build_timeout_minutes: { type: integer, example: 60 }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    Role:
+      type: string
+      enum: [super_admin, admin, instructor, staff]
+    Ref:
+      type: object
+      required: [id, code, name]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+    Department:
+      type: object
+      required: [id, code, name, curriculum_count, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+        curriculum_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateDepartmentRequest:
+      type: object
+      required: [code, name]
+      properties:
+        code: { type: string, maxLength: 50 }
+        name: { type: string, maxLength: 200 }
+    UpdateDepartmentRequest:
+      type: object
+      properties:
+        code: { type: string, maxLength: 50 }
+        name: { type: string, maxLength: 200 }
+    Cover:
+      type: object
+      required: [filename, size_bytes, updated_at]
+      properties:
+        filename: { type: string }
+        size_bytes: { type: integer, format: int64 }
+        updated_at: { type: string, format: date-time }
+    Curriculum:
+      type: object
+      required: [id, code, name, department, cover, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+        department: { $ref: "#/components/schemas/Ref" }
+        cover:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Cover"
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateCurriculumRequest:
+      type: object
+      required: [code, name, department_id]
+      properties:
+        code: { type: string, maxLength: 50 }
+        name: { type: string, maxLength: 200 }
+        department_id: { type: string, format: uuid }
+    UpdateCurriculumRequest:
+      type: object
+      properties:
+        code: { type: string, maxLength: 50 }
+        name: { type: string, maxLength: 200 }
+        department_id: { type: string, format: uuid }
+    AdminScope:
+      type: object
+      required: [departments, curricula]
+      properties:
+        departments:
+          type: array
+          items: { $ref: "#/components/schemas/Ref" }
+        curricula:
+          type: array
+          items: { $ref: "#/components/schemas/Ref" }
+    AdminScopeRequest:
+      type: object
+      properties:
+        department_ids:
+          type: array
+          items: { type: string, format: uuid }
+        curriculum_ids:
+          type: array
+          items: { type: string, format: uuid }
+    User:
+      type: object
+      required: [id, email, name, picture_url, role, department, curriculum, admin_scope, last_login_at, editable, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        picture_url: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        department:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Ref"
+        curriculum:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/Ref"
+        admin_scope:
+          nullable: true
+          description: Non-null only for role=admin
+          allOf:
+            - $ref: "#/components/schemas/AdminScope"
+        last_login_at: { type: string, format: date-time, nullable: true }
+        editable:
+          type: boolean
+          description: True when the caller may edit/delete this user (never the caller's own row)
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateUserRequest:
+      type: object
+      required: [email, role]
+      properties:
+        email: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        department_id: { type: string, format: uuid, nullable: true }
+        curriculum_id: { type: string, format: uuid, nullable: true }
+        admin_scope:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/AdminScopeRequest"
+    UpdateUserRequest:
+      type: object
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        department_id: { type: string, format: uuid, nullable: true }
+        curriculum_id: { type: string, format: uuid, nullable: true }
+        admin_scope:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/AdminScopeRequest"
+    ActAsUser:
+      type: object
+      required: [id, email, name, role, department_id, curriculum_id]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        role: { type: string, enum: [super_admin, admin, instructor, staff] }
+        department_id: { type: string, format: uuid, nullable: true }
+        curriculum_id: { type: string, format: uuid, nullable: true }
+    MeResponse:
+      type: object
+      required: [user, capabilities, act_as]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        act_as:
+          type: object
+          description: Dev-only role switcher state; available is false everywhere except a dev stack with a super_admin caller.
+          required: [available, real_user]
+          properties:
+            available: { type: boolean }
+            real_user:
+              nullable: true
+              description: The real super_admin while acting as someone else, otherwise null. user/capabilities are the acting user's.
+              type: object
+              required: [id, email, name, role]
+              properties:
+                id: { type: string, format: uuid }
+                email: { type: string }
+                name: { type: string }
+                role: { type: string }
+        capabilities:
+          type: object
+          required: [manage_org, manage_users, manage_courses, manage_covers]
+          properties:
+            manage_org: { type: boolean }
+            manage_users: { type: boolean }
+            manage_courses: { type: boolean }
+            manage_covers: { type: boolean }
+    LoginSyncRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string }
+        name: { type: string }
+        picture_url: { type: string }
+    LoginSyncResponse:
+      type: object
+      required: [user_id, email, role]
+      properties:
+        user_id: { type: string, format: uuid }
+        email: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+    Offering:
+      type: object
+      required: [id, course_id, course_code, course_name, academic_year, semester, curriculum, department,
+                 instructor_count, staff_count, has_submissions, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        course_id: { type: string, format: uuid }
+        course_code: { type: string }
+        course_name: { type: string }
+        academic_year: { type: integer }
+        semester: { type: integer, enum: [1, 2, 3], description: 3 = Summer }
+        curriculum: { $ref: "#/components/schemas/Ref" }
+        department: { $ref: "#/components/schemas/Ref" }
+        instructor_count: { type: integer }
+        staff_count: { type: integer }
+        has_submissions: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateOfferingRequest:
+      type: object
+      required: [course_code, course_name, curriculum_id, academic_year, semester]
+      properties:
+        course_code: { type: string, maxLength: 50 }
+        course_name: { type: string, maxLength: 300 }
+        curriculum_id: { type: string, format: uuid }
+        academic_year: { type: integer, minimum: 2000, maximum: 2200 }
+        semester: { type: integer, enum: [1, 2, 3] }
+    UpdateOfferingRequest:
+      type: object
+      properties:
+        course_code: { type: string, maxLength: 50 }
+        course_name: { type: string, maxLength: 300 }
+        curriculum_id: { type: string, format: uuid }
+        academic_year: { type: integer, minimum: 2000, maximum: 2200 }
+        semester: { type: integer, enum: [1, 2, 3] }
+    AccessEntry:
+      type: object
+      required: [user_id, name, email, role, can_upload, can_download, is_default, default_reason, source]
+      properties:
+        user_id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        can_upload: { type: boolean }
+        can_download: { type: boolean }
+        is_default: { type: boolean }
+        default_reason: { type: string, nullable: true, example: Staff in department MATH-CS (default download) }
+        source: { type: string, enum: [manual, csv, default] }
+    ImportPlan:
+      type: object
+      required: [applied, summary, courses, access, users, errors]
+      properties:
+        applied: { type: boolean }
+        summary:
+          type: object
+          required: [rows, courses_create, courses_update, courses_keep, courses_delete, courses_kept_with_uploads,
+                     access_add, access_update, access_remove, users_create, users_role_raised]
+          properties:
+            rows: { type: integer }
+            courses_create: { type: integer }
+            courses_update: { type: integer }
+            courses_keep: { type: integer }
+            courses_delete: { type: integer }
+            courses_kept_with_uploads: { type: integer }
+            access_add: { type: integer }
+            access_update: { type: integer }
+            access_remove: { type: integer }
+            users_create: { type: integer }
+            users_role_raised: { type: integer }
+        courses:
+          type: array
+          items:
+            type: object
+            required: [action, course_code, course_name, semester, note]
+            properties:
+              action: { type: string, enum: [create, update, keep, delete, keep_has_uploads] }
+              course_code: { type: string }
+              course_name: { type: string }
+              semester: { type: integer }
+              note: { type: string }
+        access:
+          type: array
+          items:
+            type: object
+            required: [action, course_code, semester, email, role, can_upload, can_download]
+            properties:
+              action: { type: string, enum: [add, update, remove] }
+              course_code: { type: string }
+              semester: { type: integer }
+              email: { type: string }
+              role: { $ref: "#/components/schemas/Role" }
+              can_upload: { type: boolean }
+              can_download: { type: boolean }
+        users:
+          type: array
+          items:
+            type: object
+            required: [action, email, role]
+            properties:
+              action: { type: string, enum: [create, raise_role] }
+              email: { type: string }
+              role: { $ref: "#/components/schemas/Role" }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [row, message]
+            properties:
+              row: { type: integer, description: 1-based; the header is row 1 }
+              message: { type: string }
+    Issue:
+      type: object
+      required: [severity, stage, code, title, description, location, suggested_fix]
+      properties:
+        severity: { type: string, enum: [error, warning] }
+        stage: { type: string, enum: [missing, structure, naming, csv, build] }
+        code: { type: string, example: MISSING_FOLDER }
+        title: { type: string, description: "SRS section 7 message with placeholders filled" }
+        description: { type: string, description: "SRS Cause / Explanation" }
+        location: { type: string, description: "relative path, or '<path>: row N'" }
+        suggested_fix: { type: string, description: "SRS User Action Required" }
+    Submission:
+      type: object
+      required: [id, offering_id, status, original_filename, size_bytes, uploaded_by, error_count, warning_count, created_at, completed_at, issues]
+      properties:
+        id: { type: string, format: uuid }
+        offering_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [invalid, queued, processing, generated, failed]
+          description: "processing is never set by the backend; the UI shows queued as Processing"
+        original_filename: { type: string }
+        size_bytes: { type: integer, format: int64 }
+        uploaded_by:
+          nullable: true
+          type: object
+          required: [id, name, email]
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            email: { type: string }
+        error_count: { type: integer }
+        warning_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time, nullable: true }
+        issues:
+          type: array
+          description: "Filled by POST /offerings/{id}/submissions and GET /submissions/{id}; [] in lists"
+          items: { $ref: "#/components/schemas/Issue" }
+    PortfolioRow:
+      type: object
+      required: [offering_id, course_code, course_name, academic_year, semester, curriculum, department, can_upload, can_download, latest_submission, pdf_available]
+      properties:
+        offering_id: { type: string, format: uuid }
+        course_code: { type: string }
+        course_name: { type: string }
+        academic_year: { type: integer }
+        semester: { type: integer }
+        curriculum: { $ref: "#/components/schemas/Ref" }
+        department: { $ref: "#/components/schemas/Ref" }
+        can_upload: { type: boolean }
+        can_download: { type: boolean }
+        latest_submission:
+          nullable: true
+          allOf: [{ $ref: "#/components/schemas/Submission" }]
+        pdf_available: { type: boolean, description: "a generated PDF exists (it may belong to an older submission than latest_submission)" }

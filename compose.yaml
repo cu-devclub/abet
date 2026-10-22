@@ -1,0 +1,520 @@
+# Base compose file shared by dev and prod. Use via `make dev` / `make prod`
+# (compose.dev.yaml / compose.prod.yaml add builds, ports and restart policies).
+# All configuration comes from the root .env file.
+
+x-go-logging: &go-logging
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+# Tracing env (D24, spec monitoring-t10 section 6). OTEL_ENABLED=false (default) => no-op tracer, nothing is dialled.
+# DEPLOY_ENV (dev|prod) and ABET_PROJECT (compose project) are exported by the Makefile.
+x-otel: &otel
+  OTEL_ENABLED: ${MONITORING_ENABLED:-false}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://apm-server:8200
+  APM_SECRET_TOKEN: ${APM_SECRET_TOKEN:-}
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=${DEPLOY_ENV:-dev}
+  OTEL_SAMPLE_RATIO: ${OTEL_SAMPLE_RATIO:-1.0}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      AUTH_DB_NAME: ${AUTH_DB_NAME}
+      MAIN_DB_NAME: ${MAIN_DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
+  # Object storage for uploads, covers, worker outputs and final PDFs (single bucket, see MINIO_BUCKET).
+  # The official minio/minio and minio/mc repositories are no longer published on Docker Hub, so the
+  # frozen bitnamilegacy mirrors are pinned instead (same binaries). Data lives under /bitnami/minio/data
+  # because that directory is owned by the image's non-root user (uid 1001).
+  minio:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r3
+    entrypoint: ["minio"]
+    command: ["server", "/bitnami/minio/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_PROMETHEUS_AUTH_TYPE: public   # /minio/v2/metrics/* scraped by Prometheus (S3 port is internal only)
+    volumes:
+      - miniodata:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+
+  # One-shot, idempotent: creates the bucket and a service user limited to that bucket.
+  minio-init:
+    image: bitnamilegacy/minio-client:2025.5.21-debian-12-r3
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        export MC_CONFIG_DIR=/tmp/mc
+        mc alias set local "http://minio:9000" "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$MINIO_BUCKET"
+        cat > /tmp/abet-policy.json <<POLICY
+        {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:*"],"Resource":["arn:aws:s3:::$$MINIO_BUCKET","arn:aws:s3:::$$MINIO_BUCKET/*"]}]}
+        POLICY
+        mc admin policy create local abet-bucket-rw /tmp/abet-policy.json
+        mc admin user add local "$$MINIO_ACCESS_KEY" "$$MINIO_SECRET_KEY"
+        mc admin policy attach local abet-bucket-rw --user "$$MINIO_ACCESS_KEY"
+        echo "minio-init done"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET:-abet}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    environment:
+      <<: [*go-logging, *otel]
+      PORT: "8080"
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${AUTH_DB_NAME}
+      DB_SSLMODE: disable
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
+      ALLOWED_EMAIL_DOMAINS: ${ALLOWED_EMAIL_DOMAINS}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      MAIN_SERVICE_URL: http://main-service:8080
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      OTEL_SERVICE_NAME: auth-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+
+  main-service:
+    build:
+      context: ./main-service
+      dockerfile: Dockerfile
+    environment:
+      <<: [*go-logging, *otel]
+      PORT: "8080"
+      DB_HOST: ${POSTGRES_HOST}
+      DB_PORT: ${POSTGRES_PORT}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${MAIN_DB_NAME}
+      DB_SSLMODE: disable
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      RABBITMQ_STATUS_QUEUE: ${RABBITMQ_STATUS_QUEUE}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      SUPER_ADMIN_EMAILS: ${SUPER_ADMIN_EMAILS:-}
+      ALLOWED_EMAIL_DOMAINS: ${ALLOWED_EMAIL_DOMAINS}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_BUCKET: ${MINIO_BUCKET:-abet}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      UPLOAD_TMP_DIR: /tmp/abet-uploads
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-300}
+      MAX_COVER_MB: ${MAX_COVER_MB:-20}
+      MAX_IMPORT_MB: ${MAX_IMPORT_MB:-5}
+      BUILD_TIMEOUT_MINUTES: ${BUILD_TIMEOUT_MINUTES:-60}
+      RECONCILE_INTERVAL_SECONDS: ${RECONCILE_INTERVAL_SECONDS:-60}
+      INSTRUCTOR_PACKAGE_DIR: /app/assets/instructor-package
+      OTEL_SERVICE_NAME: main-service
+    volumes:
+      - uploadtmp:/tmp/abet-uploads
+      - ./portfolio-service/templates/instructor-package:/app/assets/instructor-package:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+
+  # No container_name: scaled with PORTFOLIO_WORKER_REPLICAS so one hung LaTeX build does not block every job.
+  portfolio-service:
+    build:
+      context: ./portfolio-service
+    deploy:
+      replicas: ${PORTFOLIO_WORKER_REPLICAS:-2}
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
+    environment:
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-/}
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      RABBITMQ_STATUS_QUEUE: ${RABBITMQ_STATUS_QUEUE}
+      DELETE_ZIP_DEFAULT: ${DELETE_ZIP_DEFAULT:-true}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_BUCKET: ${MINIO_BUCKET:-abet}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      <<: *otel
+      OTEL_SERVICE_NAME: portfolio-service
+    volumes:
+      - ./deploy/portfolio-service:/deploy:ro
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+  api-gateway:
+    image: apache/apisix:3.13.0-debian
+    # Wrapper computes GATEWAY_MAX_BODY_MB from the size limits, then execs the image's /docker-entrypoint.sh.
+    entrypoint: ["/bin/sh", "/deploy/entrypoint.sh"]
+    command: ["docker-start"]
+    environment:
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-300}
+      MAX_COVER_MB: ${MAX_COVER_MB:-20}
+      MAX_IMPORT_MB: ${MAX_IMPORT_MB:-5}
+      # Monitoring: entrypoint adds the /grafana + /kibana routes and the opentelemetry global rule only when true.
+      MONITORING_ENABLED: ${MONITORING_ENABLED:-false}
+      DEPLOY_ENV: ${DEPLOY_ENV:-dev}
+      OTEL_SAMPLE_RATIO: ${OTEL_SAMPLE_RATIO:-1.0}
+      APM_SECRET_TOKEN: ${APM_SECRET_TOKEN:-}
+    volumes:
+      # Sources: the entrypoint renders /usr/local/apisix/conf/{config,apisix}.yaml from these (apisix.yaml is mounted per env).
+      - ./api-gateway/config.yaml:/gateway-src/config.yaml:ro
+      - ./api-gateway/monitoring:/gateway-src/monitoring:ro
+      - ./deploy/api-gateway:/deploy:ro
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      main-service:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+
+  # ===================================================================================================
+  # Monitoring (profile "monitoring"; `make dev MON=1` / MONITORING_ENABLED=true). Internal network only;
+  # reached through the gateway under /grafana and /kibana. Spec: plan/contracts/monitoring-t10.md
+  # ===================================================================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.23
+    profiles: [monitoring]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.ml.enabled: "false"
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+      ES_JAVA_OPTS: -Xms${ES_HEAP_MB:-1024}m -Xmx${ES_HEAP_MB:-1024}m
+    ulimits:
+      memlock: {soft: -1, hard: -1}
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -u \"elastic:$$ELASTIC_PASSWORD\" 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 40s
+
+  # One-shot, idempotent: kibana_system password, users/roles abet_ingest + abet_reader, retention (forever).
+  es-init:
+    image: curlimages/curl:8.22.0
+    profiles: [monitoring]
+    entrypoint: ["/bin/sh", "/init/es-init.sh"]
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-}
+      ES_INGEST_PASSWORD: ${ES_INGEST_PASSWORD:-}
+      ES_READER_PASSWORD: ${ES_READER_PASSWORD:-}
+    volumes:
+      - ./deploy/monitoring/elasticsearch:/init:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: "no"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.19.23
+    profiles: [monitoring]
+    environment:
+      SERVER_BASEPATH: /kibana
+      SERVER_REWRITEBASEPATH: "true"
+      SERVER_PUBLICBASEURL: ${PUBLIC_BASE_URL:-http://localhost:8000}/kibana
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-}
+      XPACK_SECURITY_ENCRYPTIONKEY: ${KIBANA_ENCRYPTION_KEY:-}
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${KIBANA_ENCRYPTION_KEY:-}
+      XPACK_REPORTING_ENCRYPTIONKEY: ${KIBANA_ENCRYPTION_KEY:-}
+      XPACK_SECURITY_COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TELEMETRY_OPTIN: "false"
+      NODE_OPTIONS: --max-old-space-size=1024
+    depends_on:
+      es-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/kibana/api/status | grep -q '\"level\":\"available\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  # One-shot after Kibana is healthy: data views + saved searches (deploy/monitoring/kibana/setup.sh), idempotent.
+  kibana-init:
+    image: curlimages/curl:8.22.0
+    profiles: [monitoring]
+    entrypoint: ["/bin/sh", "/kibana/setup.sh"]
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+      KIBANA_URL: http://kibana:5601/kibana
+    volumes:
+      - ./deploy/monitoring/kibana:/kibana:ro
+    depends_on:
+      kibana:
+        condition: service_healthy
+    restart: "no"
+
+  # APM Server 8.x standalone (not Fleet): OTLP/HTTP on 8200 -> Elasticsearch (traces-apm*, logs-apm*, metrics-apm*).
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.19.23
+    profiles: [monitoring]
+    command: ["--strict.perms=false", "-e", "-c", "/usr/share/apm-server/apm-server.yml"]
+    environment:
+      APM_SECRET_TOKEN: ${APM_SECRET_TOKEN:-}
+      ES_INGEST_PASSWORD: ${ES_INGEST_PASSWORD:-}
+    volumes:
+      - ./deploy/monitoring/apm-server/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+    depends_on:
+      es-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8200 && printf \"GET / HTTP/1.0\\r\\n\\r\\n\" >&3 && head -n1 <&3 | grep -q \" 200 \"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.19.23
+    profiles: [monitoring]
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false", "-c", "/usr/share/filebeat/filebeat.yml"]
+    environment:
+      ES_INGEST_PASSWORD: ${ES_INGEST_PASSWORD:-}
+      ABET_PROJECT: ${ABET_PROJECT:-abet}
+      DEPLOY_ENV: ${DEPLOY_ENV:-dev}
+    volumes:
+      - ./deploy/monitoring/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - filebeatdata:/usr/share/filebeat/data
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      es-init:
+        condition: service_completed_successfully
+    healthcheck:
+      # own --path.data: a probe on the shared data dir races the running filebeat over meta.json at startup
+      # (docker runs the check every 5s in start_period) and kills it with "rename .../meta.json.new ...: no such file"
+      test: ["CMD-SHELL", "filebeat test output --strict.perms=false --path.data /tmp/filebeat-healthcheck -c /usr/share/filebeat/filebeat.yml >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
+
+  prometheus:
+    image: prom/prometheus:v3.13.4
+    profiles: [monitoring]
+    # @@ENV@@ in prometheus.yml -> dev|prod; the Grafana /metrics basic-auth password goes to a file.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        sed "s/@@ENV@@/$${DEPLOY_ENV}/g" /etc/prometheus/prometheus.yml > /tmp/prometheus.yml
+        printf '%s' "$${GRAFANA_ADMIN_PASSWORD}" > /tmp/grafana-metrics-password
+        exec /bin/prometheus --config.file=/tmp/prometheus.yml --storage.tsdb.path=/prometheus \
+          --storage.tsdb.retention.time=$${PROMETHEUS_RETENTION} --web.enable-lifecycle
+    environment:
+      DEPLOY_ENV: ${DEPLOY_ENV:-dev}
+      PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
+      GRAFANA_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+    volumes:
+      - ./deploy/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    profiles: [monitoring]
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=10s
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.service,com.docker.compose.project
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    profiles: [monitoring]
+    command: ["--path.rootfs=/host"]
+    volumes:
+      - /:/host:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9100/metrics || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  # One-shot, idempotent: least-privilege role abet_monitor (pg_monitor) for the exporter.
+  postgres-mon-init:
+    image: postgres:17-alpine
+    profiles: [monitoring]
+    entrypoint: ["/bin/sh", "/init/mon-init.sh"]
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_MONITOR_PASSWORD: ${POSTGRES_MONITOR_PASSWORD:-}
+    volumes:
+      - ./deploy/monitoring/postgres:/init:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # Credentials as separate variables (no password in a URL).
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
+    profiles: [monitoring]
+    command: ["--auto-discover-databases"]
+    environment:
+      DATA_SOURCE_URI: postgres:5432/postgres?sslmode=disable
+      DATA_SOURCE_USER: abet_monitor
+      DATA_SOURCE_PASS: ${POSTGRES_MONITOR_PASSWORD:-}
+    depends_on:
+      postgres-mon-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9187/metrics || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+
+  grafana:
+    image: grafana/grafana:12.4.12
+    profiles: [monitoring]
+    environment:
+      GF_SERVER_ROOT_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      GF_SECURITY_COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_METRICS_BASIC_AUTH_USERNAME: prometheus
+      GF_METRICS_BASIC_AUTH_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      ES_READER_PASSWORD: ${ES_READER_PASSWORD:-}
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./deploy/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/monitoring/grafana/dashboards:/var/lib/grafana/abet-dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      es-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/grafana/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 300s   # first start runs ~700 DB migrations (several minutes on a slow disk / Docker Desktop)
+
+volumes:
+  pgdata:
+  rabbitdata:
+  miniodata:
+  uploadtmp:
+  esdata:
+  filebeatdata:
+  promdata:
+  grafanadata:
