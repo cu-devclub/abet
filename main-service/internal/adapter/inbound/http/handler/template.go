@@ -26,7 +26,7 @@ func (h *TemplateHandler) Register(rg *gin.RouterGroup) {
 func (h *TemplateHandler) InstructorPackage(c *gin.Context) {
 	hdr := c.Writer.Header()
 	hdr.Set("Content-Type", "application/zip")
-	hdr.Set("Content-Disposition", contentDisposition("attachment", "instructor-package.zip"))
+	hdr.Set("Content-Disposition", contentDisposition("attachment", "course-template.zip"))
 	hdr.Set("Cache-Control", "no-cache")
 	c.Status(http.StatusOK)
 	if err := h.templates.WriteInstructorPackage(c.Writer); err != nil {

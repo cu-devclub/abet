@@ -76,6 +76,6 @@ export function useBulkDownload() {
 export function useDownloadTemplate() {
   return useMutation({
     mutationFn: (kind: 'instructor-package.zip' | 'course-instructor-mapping.csv') =>
-      downloadAndSave(`/templates/${kind}`, kind),
+      downloadAndSave(`/templates/${kind}`, kind === 'instructor-package.zip' ? 'course-template.zip' : kind),
   })
 }

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
+import { FolderDown } from 'lucide-react'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { Alert } from '../../components/ui/Alert'
+import { Button } from '../../components/ui/Button'
 import { Count, FilterToolbar } from '../../components/ui/FilterToolbar'
 import { PageSpinner } from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/useToast'
@@ -11,7 +13,7 @@ import { orgPills } from '../shared/orgPills'
 import { useOrgFilters } from '../shared/useOrgFilters'
 import { useOrgOptions } from '../shared/useOrgOptions'
 import { YearSelect } from '../shared/YearSelect'
-import { useBulkDownload, useDownloadPortfolio, usePortfolios } from './api'
+import { useBulkDownload, useDownloadPortfolio, useDownloadTemplate, usePortfolios } from './api'
 import { BulkDownloadBar } from './components/BulkDownloadBar'
 import { IssuesModal } from './components/IssuesModal'
 import { PortfolioTable, type PortfolioSortField } from './components/PortfolioTable'
@@ -43,6 +45,7 @@ type IssuesTarget = { row: PortfolioRow; submissionId: string }
 
 export function PortfoliosPage() {
   const toast = useToast()
+  const template = useDownloadTemplate()
   const filters = useOrgFilters()
   const sort = useSort<PortfolioSortField>('id')
   const [selected, setSelected] = useState<string[]>([])
@@ -111,7 +114,24 @@ export function PortfoliosPage() {
         <PageHeader
           title="Course Portfolios"
           actions={
-            visibleSelected.length > 0 && <BulkDownloadBar count={visibleSelected.length} loading={bulk.isPending} onDownload={downloadSelected} />
+            <>
+              {visibleSelected.length > 0 && (
+                <BulkDownloadBar count={visibleSelected.length} loading={bulk.isPending} onDownload={downloadSelected} />
+              )}
+              <Button
+                variant="secondary"
+                icon={FolderDown}
+                loading={template.isPending}
+                title="The folder structure and CSV templates to fill in before uploading a course portfolio"
+                onClick={() =>
+                  template.mutate('instructor-package.zip', {
+                    onSuccess: () => toast.success('Downloaded the course portfolio template (course-template.zip).'),
+                  })
+                }
+              >
+                Download Template
+              </Button>
+            </>
           }
         />
         <div className="flex flex-wrap items-center gap-2.5">

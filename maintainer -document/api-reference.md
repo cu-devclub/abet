@@ -107,7 +107,7 @@ Not reachable from outside (docker network only):
 
 | Method | Browser path | Service path | Role |
 |---|---|---|---|
-| GET | `/auth/api/v1/templates/instructor-package.zip` | `/api/v1/templates/instructor-package.zip` | Any — the empty portfolio folder template (under `course-id-course-name/`) |
+| GET | `/auth/api/v1/templates/instructor-package.zip` | `/api/v1/templates/instructor-package.zip` | Any — the empty portfolio folder template (under `course-id-course-name/`), saved as `course-template.zip` |
 | GET | `/auth/api/v1/templates/course-instructor-mapping.csv` | `/api/v1/templates/course-instructor-mapping.csv` | Any — header + 2 example rows |
 
 ### Not reachable from outside

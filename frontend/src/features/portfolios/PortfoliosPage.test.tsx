@@ -41,6 +41,7 @@ function setup(rows: PortfolioRow[]) {
     'GET /departments': { items: [] },
     'GET /curricula': { items: [] },
     'GET /portfolios': { items: rows },
+    'GET /templates/instructor-package.zip': {},
     'GET /submissions/s1': {
       ...baseSubmission,
       id: 's1',
@@ -133,5 +134,19 @@ describe('PortfoliosPage', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('lets an instructor download the course portfolio template from the page header', async () => {
+    const { calls } = setup([row({})])
+    const createObjectURL = vi.fn(() => 'blob:template')
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }))
+    renderApp(<PortfoliosPage />, '/portfolios')
+
+    await screen.findByText('Computer Programming')
+    await userEvent.click(screen.getByRole('button', { name: /download template/i }))
+
+    await screen.findByText(/Downloaded the course portfolio template/)
+    expect(calls.some((c) => c.key === 'GET /templates/instructor-package.zip')).toBe(true)
+    expect(createObjectURL).toHaveBeenCalled()
   })
 })

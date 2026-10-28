@@ -337,6 +337,7 @@ var _ = Describe("submissions and templates over HTTP", func() {
 			w := serve(httptest.NewRequest(http.MethodGet, "/api/v1/templates/instructor-package.zip", nil))
 			Expect(w.Code).To(Equal(http.StatusOK))
 			Expect(w.Header().Get("Content-Type")).To(Equal("application/zip"))
+			Expect(w.Header().Get("Content-Disposition")).To(ContainSubstring("course-template.zip"))
 			zr, err := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
 			Expect(err).NotTo(HaveOccurred())
 			Expect(zr.File[0].Name).To(Equal("course-id-course-name/README_FIRST.txt"))
