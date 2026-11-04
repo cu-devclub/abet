@@ -792,7 +792,7 @@ paths:
   /api/v1/templates/instructor-package.zip:
     get:
       tags: [templates]
-      summary: The instructor package folder as a zip (top folder course-id-course-name/), any authenticated user
+      summary: The course template zip (the custom upload if a super admin set one, else the built-in folder zipped under course-id-course-name/), any authenticated user
       security: [{ userHeader: [] }]
       responses:
         "200":
@@ -801,6 +801,55 @@ paths:
             application/zip:
               schema: { type: string, format: binary }
         "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/config/course-template:
+    get:
+      tags: [config]
+      summary: Source of the course template zip (default or custom), super_admin only
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: Template info
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CourseTemplateInfo" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [config]
+      summary: Replace the course template zip (super_admin only); must contain the 4 core CSV templates
+      security: [{ userHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: The new (custom) template info
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CourseTemplateInfo" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+    delete:
+      tags: [config]
+      summary: Restore the built-in default template (idempotent, super_admin only)
+      security: [{ userHeader: [] }]
+      responses:
+        "200":
+          description: Default template info
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CourseTemplateInfo" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /api/v1/templates/course-instructor-mapping.csv:
     get:
@@ -1112,12 +1161,21 @@ components:
                 role: { type: string }
         capabilities:
           type: object
-          required: [manage_org, manage_users, manage_courses, manage_covers]
+          required: [manage_org, manage_users, manage_courses, manage_covers, manage_system]
           properties:
             manage_org: { type: boolean }
             manage_users: { type: boolean }
             manage_courses: { type: boolean }
             manage_covers: { type: boolean }
+            manage_system: { type: boolean }
+    CourseTemplateInfo:
+      type: object
+      required: [source, size_bytes, uploaded_at, uploaded_by]
+      properties:
+        source: { type: string, enum: [default, custom] }
+        size_bytes: { type: integer, format: int64, nullable: true }
+        uploaded_at: { type: string, format: date-time, nullable: true }
+        uploaded_by: { type: string, nullable: true }
     LoginSyncRequest:
       type: object
       required: [email]

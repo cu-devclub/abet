@@ -95,6 +95,7 @@ All files are objects in ONE MinIO bucket (`MINIO_BUCKET`, default `abet`, volum
 ├── outputs/<submission_id>/<files>      written by the WORKER (PDFs + reports); main-service copies the PDF to portfolios/ then deletes the whole prefix
 ├── portfolios/<submission_id>.pdf       the final PDF (server-side copy); ONLY the newest generated submission of an offering keeps its object
 └── covers/<curriculum_id>.pdf           the curriculum cover (replaced on upload, deleted with the curriculum)
+└── config/course-template.zip           the custom course template set on the System Config page (user metadata `uploaded-by` = e-mail); absent = built-in default
 ```
 
 An invalid or non-zip upload never creates an object: the zip is validated from a temp file (`UPLOAD_TMP_DIR`, the `uploadtmp` volume, always cleaned) before it is put into the bucket.
@@ -120,6 +121,12 @@ $DC run --rm --no-deps --entrypoint sh minio-init -c 'export MC_CONFIG_DIR=/tmp/
 ```
 
 Security: see [security-and-permissions.md](security-and-permissions.md#what-is-exposed-in-production) (the console is plain HTTP with root login; restrict it).
+
+## System Config (course template)
+
+Super admins replace the course template zip that everyone downloads ("Download Template" on Course Portfolios) on the **System Config** page (`/config`). The zip must contain the 4 core CSV templates; it is validated on upload (zip, size <= `MAX_TEMPLATE_MB`, safe paths). The custom file is the MinIO object `config/course-template.zip`; without it the built-in folder (`INSTRUCTOR_PACKAGE_DIR`) is zipped on the fly.
+
+Reset to the default: "Restore default" on the page, or `DELETE /api/v1/config/course-template`, or delete the object `config/course-template.zip` in the MinIO console. If MinIO errors while serving a download, main-service logs it and serves the default instead.
 
 ## Common failures and fixes
 

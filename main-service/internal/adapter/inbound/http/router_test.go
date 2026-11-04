@@ -131,7 +131,7 @@ var _ = Describe("router", func() {
 			}, nil)
 			w := do("GET", "/api/v1/me", "", headers)
 			Expect(w.Code).To(Equal(http.StatusOK))
-			Expect(w.Body.String()).To(ContainSubstring(`"capabilities":{"manage_org":true,"manage_users":true,"manage_courses":true,"manage_covers":true}`))
+			Expect(w.Body.String()).To(ContainSubstring(`"capabilities":{"manage_org":true,"manage_users":true,"manage_courses":true,"manage_covers":true,"manage_system":true}`))
 			Expect(w.Body.String()).To(ContainSubstring(`"created_at":"2026-10-09T10:00:00Z"`))
 			Expect(w.Body.String()).To(ContainSubstring(`"department":null`))
 			Expect(w.Body.String()).To(ContainSubstring(`"admin_scope":null`))

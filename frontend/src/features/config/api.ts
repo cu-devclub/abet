@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { apiGet } from '../../lib/http'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiDelete, apiGet, uploadWithProgress } from '../../lib/http'
 
 const MB = 1024 * 1024
 
@@ -37,4 +37,38 @@ export function useAppConfig(): Limits {
     retry: 1,
   })
   return limitsFrom({ ...DEFAULT_APP_CONFIG, ...query.data })
+}
+
+export interface CourseTemplateStatus {
+  source: 'default' | 'custom'
+  size_bytes: number | null
+  uploaded_at: string | null
+  uploaded_by: string | null
+}
+
+const TEMPLATE_KEY = ['config', 'course-template']
+
+export function useCourseTemplate() {
+  return useQuery({ queryKey: TEMPLATE_KEY, queryFn: () => apiGet<CourseTemplateStatus>('/config/course-template') })
+}
+
+export function useUploadCourseTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return uploadWithProgress<CourseTemplateStatus>('/config/course-template', form, undefined, 'PUT')
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: TEMPLATE_KEY }),
+    meta: { inlineError: true },
+  })
+}
+
+export function useRestoreCourseTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiDelete<CourseTemplateStatus>('/config/course-template'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: TEMPLATE_KEY }),
+  })
 }

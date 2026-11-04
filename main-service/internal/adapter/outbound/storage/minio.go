@@ -89,7 +89,7 @@ func isNotFound(err error) bool {
 }
 
 func info(o minio.ObjectInfo) port.ObjectInfo {
-	return port.ObjectInfo{Key: o.Key, Size: o.Size, LastModified: o.LastModified, ContentType: o.ContentType}
+	return port.ObjectInfo{Key: o.Key, Size: o.Size, LastModified: o.LastModified, ContentType: o.ContentType, Meta: o.UserMetadata}
 }
 
 func (m *MinIO) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {
@@ -104,10 +104,14 @@ func (m *MinIO) Put(ctx context.Context, key string, r io.Reader, size int64, co
 }
 
 func (m *MinIO) PutFile(ctx context.Context, key, localPath, contentType string) error {
+	return m.PutFileMeta(ctx, key, localPath, contentType, nil)
+}
+
+func (m *MinIO) PutFileMeta(ctx context.Context, key, localPath, contentType string, meta map[string]string) error {
 	if err := checkKey(key); err != nil {
 		return err
 	}
-	if _, err := m.client.FPutObject(ctx, m.bucket, key, localPath, minio.PutObjectOptions{ContentType: contentType}); err != nil {
+	if _, err := m.client.FPutObject(ctx, m.bucket, key, localPath, minio.PutObjectOptions{ContentType: contentType, UserMetadata: meta}); err != nil {
 		return fmt.Errorf("put %s: %w", key, err)
 	}
 	return nil

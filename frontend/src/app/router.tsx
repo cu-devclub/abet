@@ -35,6 +35,10 @@ export const router = createBrowserRouter([
               { path: '/curricula', lazy: async () => ({ Component: (await import('../features/curricula/CurriculaPage')).CurriculaPage }) },
             ],
           },
+          {
+            element: <RequireCapability capability="manage_system" />,
+            children: [{ path: '/config', lazy: async () => ({ Component: (await import('../features/config/ConfigPage')).ConfigPage }) }],
+          },
         ],
       },
     ],

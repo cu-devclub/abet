@@ -12,6 +12,8 @@ type ObjectInfo struct {
 	Size         int64
 	LastModified time.Time
 	ContentType  string
+	// Meta is the user metadata set at upload (keys as given to PutFileMeta, any case).
+	Meta map[string]string
 }
 
 // Storage is the object store (MinIO bucket) shared with the portfolio worker. Keys look like "covers/<id>.pdf".
@@ -20,6 +22,8 @@ type Storage interface {
 	Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error
 	// PutFile uploads a local file.
 	PutFile(ctx context.Context, key, localPath, contentType string) error
+	// PutFileMeta is PutFile plus user metadata (returned in ObjectInfo.Meta by Get/Stat).
+	PutFileMeta(ctx context.Context, key, localPath, contentType string, meta map[string]string) error
 	// Get opens an object for streaming; domain.ErrNotFound when it does not exist. The caller must Close it.
 	Get(ctx context.Context, key string) (io.ReadCloser, ObjectInfo, error)
 	// Stat returns the object's metadata; domain.ErrNotFound when it does not exist.

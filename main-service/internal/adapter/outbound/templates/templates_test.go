@@ -25,7 +25,7 @@ var _ = Describe("templates service", func() {
 		Expect(os.WriteFile(filepath.Join(dir, "10-lectures", "week01-part01.pdf"), []byte("%PDF-1.4"), 0o644)).To(Succeed())
 
 		var buf bytes.Buffer
-		Expect(templates.New(dir).WriteInstructorPackage(&buf)).To(Succeed())
+		Expect(templates.New(dir, nil).WriteInstructorPackage(&buf)).To(Succeed())
 		zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
 		Expect(err).NotTo(HaveOccurred())
 		got := map[string]string{}
@@ -49,7 +49,7 @@ var _ = Describe("templates service", func() {
 			Skip("portfolio-service template not present")
 		}
 		var buf bytes.Buffer
-		Expect(templates.New(real).WriteInstructorPackage(&buf)).To(Succeed())
+		Expect(templates.New(real, nil).WriteInstructorPackage(&buf)).To(Succeed())
 		zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
 		Expect(err).NotTo(HaveOccurred())
 		files := 0
@@ -71,11 +71,11 @@ var _ = Describe("templates service", func() {
 
 	It("fails clearly when the directory is missing", func() {
 		var buf bytes.Buffer
-		Expect(templates.New(filepath.Join(GinkgoT().TempDir(), "nope")).WriteInstructorPackage(&buf)).NotTo(Succeed())
+		Expect(templates.New(filepath.Join(GinkgoT().TempDir(), "nope"), nil).WriteInstructorPackage(&buf)).NotTo(Succeed())
 	})
 
 	It("serves a mapping CSV with the documented header and 2 example rows", func() {
-		recs, err := csv.NewReader(bytes.NewReader(templates.New("").CourseMappingCSV())).ReadAll()
+		recs, err := csv.NewReader(bytes.NewReader(templates.New("", nil).CourseMappingCSV())).ReadAll()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(recs).To(HaveLen(3))
 		Expect(recs[0]).To(Equal([]string{"course id", "course name", "semester", "user email", "user role", "upload permission", "download permission"}))

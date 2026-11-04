@@ -32,6 +32,7 @@ export interface Capabilities {
   manage_users: boolean
   manage_courses: boolean
   manage_covers: boolean
+  manage_system: boolean
 }
 
 export type Capability = keyof Capabilities

@@ -8,6 +8,7 @@ const VARIANTS: Record<string, string> = {
   admin: 'bg-blue-100 text-blue-800 border-blue-200',
   instructor: 'bg-teal-100 text-teal-800 border-teal-200',
   staff: 'bg-gray-100 text-gray-800 border-gray-200',
+  custom: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   processing: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   generated: 'bg-green-100 text-green-800 border-green-200',
   failed: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:border-red-300 font-semibold',

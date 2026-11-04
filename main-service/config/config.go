@@ -28,9 +28,10 @@ type Config struct {
 	MinIOUseSSL    bool
 	UploadTmpDir   string
 
-	MaxUploadMB int
-	MaxCoverMB  int
-	MaxImportMB int
+	MaxUploadMB   int
+	MaxCoverMB    int
+	MaxImportMB   int
+	MaxTemplateMB int
 
 	BuildTimeoutMinutes      int
 	ReconcileIntervalSeconds int
@@ -81,9 +82,10 @@ func Load() *Config {
 		MinIOUseSSL:    getEnvBool("MINIO_USE_SSL", false),
 		UploadTmpDir:   getEnv("UPLOAD_TMP_DIR", os.TempDir()),
 
-		MaxUploadMB: getEnvInt("MAX_UPLOAD_MB", 300),
-		MaxCoverMB:  getEnvInt("MAX_COVER_MB", 20),
-		MaxImportMB: getEnvInt("MAX_IMPORT_MB", 5),
+		MaxUploadMB:   getEnvInt("MAX_UPLOAD_MB", 300),
+		MaxCoverMB:    getEnvInt("MAX_COVER_MB", 20),
+		MaxImportMB:   getEnvInt("MAX_IMPORT_MB", 5),
+		MaxTemplateMB: getEnvInt("MAX_TEMPLATE_MB", 20),
 
 		BuildTimeoutMinutes:      getEnvInt("BUILD_TIMEOUT_MINUTES", 60),
 		ReconcileIntervalSeconds: getEnvInt("RECONCILE_INTERVAL_SECONDS", 60),

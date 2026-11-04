@@ -157,6 +157,20 @@ func (mr *MockStorageMockRecorder) PutFile(ctx, key, localPath, contentType any)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutFile", reflect.TypeOf((*MockStorage)(nil).PutFile), ctx, key, localPath, contentType)
 }
 
+// PutFileMeta mocks base method.
+func (m *MockStorage) PutFileMeta(ctx context.Context, key, localPath, contentType string, meta map[string]string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutFileMeta", ctx, key, localPath, contentType, meta)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PutFileMeta indicates an expected call of PutFileMeta.
+func (mr *MockStorageMockRecorder) PutFileMeta(ctx, key, localPath, contentType, meta any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutFileMeta", reflect.TypeOf((*MockStorage)(nil).PutFileMeta), ctx, key, localPath, contentType, meta)
+}
+
 // Stat mocks base method.
 func (m *MockStorage) Stat(ctx context.Context, key string) (port.ObjectInfo, error) {
 	m.ctrl.T.Helper()

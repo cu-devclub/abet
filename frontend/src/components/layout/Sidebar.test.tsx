@@ -24,7 +24,7 @@ describe('Sidebar', () => {
 
   it('shows everything to super admins', () => {
     renderApp(<Sidebar me={makeMe('super_admin')} />)
-    expect(navLabels()).toEqual(['Course Portfolios', 'Courses', 'Cover Page', 'Users', 'Departments', 'Curriculums'])
+    expect(navLabels()).toEqual(['Course Portfolios', 'Courses', 'Cover Page', 'Users', 'Departments', 'Curriculums', 'System Config'])
   })
 
   it('persists the collapsed state', async () => {

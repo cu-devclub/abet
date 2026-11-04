@@ -33,6 +33,9 @@ var requiredFiles = []string{
 	identityPath, syllabusPath, schedulePath, gradingPath,
 }
 
+// CoreCSVPaths returns the four CSV templates every course package must contain (package-relative paths).
+func CoreCSVPaths() []string { return append([]string(nil), requiredFiles...) }
+
 const (
 	identityPath = "00-meta/instructor_course_identity_template.csv"
 	syllabusPath = "01-syllabus/instructor_syllabus_abet_reference.csv"

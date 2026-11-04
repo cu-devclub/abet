@@ -140,6 +140,7 @@ type CapabilitiesResponse struct {
 	ManageUsers   bool `json:"manage_users"`
 	ManageCourses bool `json:"manage_courses"`
 	ManageCovers  bool `json:"manage_covers"`
+	ManageSystem  bool `json:"manage_system"`
 }
 
 type MeResponse struct {
@@ -152,7 +153,7 @@ func MeFromResult(r *port.MeResult, caller *domain.Actor) MeResponse {
 	return MeResponse{
 		User: UserFromDomain(r.User, caller),
 		Capabilities: CapabilitiesResponse{
-			ManageOrg: r.ManageOrg, ManageUsers: r.ManageUsers, ManageCourses: r.ManageCourses, ManageCovers: r.ManageCovers,
+			ManageOrg: r.ManageOrg, ManageUsers: r.ManageUsers, ManageCourses: r.ManageCourses, ManageCovers: r.ManageCovers, ManageSystem: r.ManageSystem,
 		},
 	}
 }

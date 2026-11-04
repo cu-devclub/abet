@@ -87,7 +87,7 @@ var _ = Describe("queries", func() {
 		BeforeEach(func() { repo = mocks.NewMockUserRepository(ctrl) })
 
 		DescribeTable("capabilities per role",
-			func(a *domain.Actor, org, users, courses, covers bool) {
+			func(a *domain.Actor, org, users, courses, covers, system bool) {
 				repo.EXPECT().GetByID(ctx, a.UserID).Return(&domain.User{ID: a.UserID, Role: a.Role}, nil)
 				res, err := queries.NewGetMeHandler(repo).Execute(ctx, a)
 				Expect(err).NotTo(HaveOccurred())
@@ -95,11 +95,12 @@ var _ = Describe("queries", func() {
 				Expect(res.ManageUsers).To(Equal(users))
 				Expect(res.ManageCourses).To(Equal(courses))
 				Expect(res.ManageCovers).To(Equal(covers))
+				Expect(res.ManageSystem).To(Equal(system))
 			},
-			Entry("super_admin", super, true, true, true, true),
-			Entry("admin", admin, false, true, true, true),
-			Entry("instructor", instructor, false, false, false, false),
-			Entry("staff", staff, false, false, false, false),
+			Entry("super_admin", super, true, true, true, true, true),
+			Entry("admin", admin, false, true, true, true, false),
+			Entry("instructor", instructor, false, false, false, false, false),
+			Entry("staff", staff, false, false, false, false, false),
 		)
 
 		It("passes a missing user through as not found", func() {

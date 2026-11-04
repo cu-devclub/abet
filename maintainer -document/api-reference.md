@@ -40,7 +40,7 @@ Not reachable from outside (docker network only):
 
 | Method | Browser path | Service path | Role |
 |---|---|---|---|
-| GET | `/auth/api/v1/me` | `/api/v1/me` | Any — returns `{user, capabilities:{manage_org, manage_users, manage_courses, manage_covers}, act_as:{available, real_user}}` (`act_as` = dev-only role switcher state, see below) |
+| GET | `/auth/api/v1/me` | `/api/v1/me` | Any — returns `{user, capabilities:{manage_org, manage_users, manage_courses, manage_covers, manage_system}, act_as:{available, real_user}}` (`act_as` = dev-only role switcher state, see below) |
 | GET | `/auth/api/v1/dev/act-as/users` | `/api/v1/dev/act-as/users` | DEV ONLY (404 unless `DEV_ACT_AS_ENABLED=true` and `APP_ENV=development`); real super_admin; `?q=&role=`; users except yourself, max 500 |
 | POST | `/auth/api/v1/dev/act-as` | `/api/v1/dev/act-as` | DEV ONLY; real super_admin; `{"user_id"}` -> 204 + `abet_act_as` cookie (Path `/auth/api`); 400 own id/bad body, 404 unknown user |
 | DELETE | `/auth/api/v1/dev/act-as` | `/api/v1/dev/act-as` | DEV ONLY; real super_admin; 204, clears the cookie (idempotent) |
@@ -107,8 +107,18 @@ Not reachable from outside (docker network only):
 
 | Method | Browser path | Service path | Role |
 |---|---|---|---|
-| GET | `/auth/api/v1/templates/instructor-package.zip` | `/api/v1/templates/instructor-package.zip` | Any — the empty portfolio folder template (under `course-id-course-name/`), saved as `course-template.zip` |
+| GET | `/auth/api/v1/templates/instructor-package.zip` | `/api/v1/templates/instructor-package.zip` | Any — the empty portfolio folder template (under `course-id-course-name/`), saved as `course-template.zip`; serves the custom zip uploaded in System Config when there is one |
 | GET | `/auth/api/v1/templates/course-instructor-mapping.csv` | `/api/v1/templates/course-instructor-mapping.csv` | Any — header + 2 example rows |
+
+### System Config (super_admin only, else 403 `{"error":"forbidden"}`)
+
+| Method | Browser path | Service path | Notes |
+|---|---|---|---|
+| GET | `/auth/api/v1/config/course-template` | `/api/v1/config/course-template` | `{source: "default" or "custom", size_bytes, uploaded_at, uploaded_by}` (nulls for default) |
+| PUT | `/auth/api/v1/config/course-template` | `/api/v1/config/course-template` | multipart `file` = zip <= `MAX_TEMPLATE_MB`; must be a valid zip with safe paths and the 4 core CSV templates (at the root or under one top folder); 400 with a plain message, 413 too big; 200 = new info |
+| DELETE | `/auth/api/v1/config/course-template` | `/api/v1/config/course-template` | restores the default (idempotent); 200 = default info |
+
+Capability `manage_system` in `GET /me` is true for super_admin only.
 
 ### Not reachable from outside
 

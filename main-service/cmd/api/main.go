@@ -104,7 +104,7 @@ func run(cfg *config.Config) error {
 	}
 	jobPublisher := rabbitmq.NewPublisher(rabbitCfg)
 	defer jobPublisher.Close()
-	templateService := templates.New(cfg.InstructorPackageDir)
+	templateService := templates.New(cfg.InstructorPackageDir, fileStore)
 
 	// 3. Bootstrap super admins from SUPER_ADMIN_EMAILS.
 	n, err := commands.NewBootstrapSuperAdminsHandler(userRepo).Execute(ctx, cfg.SuperAdminEmails)
@@ -175,6 +175,11 @@ func run(cfg *config.Config) error {
 			handler.NewCoverHandler(putCover, getCover, deleteCover, maxCoverBytes),
 			handler.NewSubmissionHandler(uploadSubmission, getSubmission, listSubmissions, getPortfolioPDF, listPortfolios, downloadPortfolios, cfg.MaxUploadMB),
 			handler.NewTemplateHandler(templateService),
+			handler.NewCourseTemplateHandler(
+				commands.NewGetCourseTemplateHandler(fileStore),
+				commands.NewPutCourseTemplateHandler(fileStore, cfg.UploadTmpDir, int64(cfg.MaxTemplateMB)<<20),
+				commands.NewDeleteCourseTemplateHandler(fileStore),
+				int64(cfg.MaxTemplateMB)<<20),
 			handler.NewConfigHandler(handler.AppConfig{
 				MaxUploadMB: cfg.MaxUploadMB, MaxCoverMB: cfg.MaxCoverMB, MaxImportMB: cfg.MaxImportMB,
 				BuildTimeoutMinutes: cfg.BuildTimeoutMinutes,

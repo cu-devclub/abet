@@ -55,6 +55,7 @@ Keys marked **secret** must be unique random values in production (`openssl rand
 | `MINIO_API_HOST_PORT` | unset | **dev only**, optional: publishes the S3 API (9000) for debugging; the prod override never publishes it | compose (dev) | no |
 | `MAX_UPLOAD_MB` | `300` | max portfolio zip (150 MB SRS limit x 2 margin, D11). main-service answers 413 above it | main, gateway | no |
 | `MAX_COVER_MB` | `20` | max cover PDF | main, gateway | no |
+| `MAX_TEMPLATE_MB` | `20` | max custom course template zip (System Config page) | main | no |
 | `MAX_IMPORT_MB` | `5` | max mapping CSV of the offerings import | main, gateway | no |
 | `BUILD_TIMEOUT_MINUTES` | `60` | a submission still waiting for the worker after this long becomes `failed` / `BUILD_TIMEOUT` (see [Stuck builds](operations.md#stuck-builds-never-processing-forever)) | main | no |
 | `RECONCILE_INTERVAL_SECONDS` | `60` | how often main-service looks for timed-out builds, checks the build queue and (hourly) cleans storage | main | no |

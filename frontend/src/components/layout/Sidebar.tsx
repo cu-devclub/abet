@@ -1,6 +1,6 @@
 import { useState, type ElementType } from 'react'
 import { NavLink, useNavigate } from 'react-router'
-import { BookMarked, BookOpen, Building2, ChevronLeft, ChevronRight, GraduationCap, Layers, LogOut, Users } from 'lucide-react'
+import { BookMarked, BookOpen, Building2, ChevronLeft, ChevronRight, GraduationCap, Layers, LogOut, Settings, Users } from 'lucide-react'
 import { cn } from '../../lib/cn'
 import { displayName, roleLabel } from '../../lib/format'
 import { useLogout } from '../../features/auth/api'
@@ -24,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/users', label: 'Users', icon: Users, capability: 'manage_users' },
   { to: '/departments', label: 'Departments', icon: Building2, capability: 'manage_org' },
   { to: '/curricula', label: 'Curriculums', icon: GraduationCap, capability: 'manage_org' },
+  { to: '/config', label: 'System Config', icon: Settings, capability: 'manage_system' },
 ]
 
 const AVATAR_STYLES: Record<Role, string> = {

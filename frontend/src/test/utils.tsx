@@ -55,6 +55,6 @@ export function makeMe(role: 'super_admin' | 'admin' | 'instructor' | 'staff', e
       updated_at: '',
       ...extra,
     },
-    capabilities: { manage_org: role === 'super_admin', manage_users: admin, manage_courses: admin, manage_covers: admin },
+    capabilities: { manage_org: role === 'super_admin', manage_users: admin, manage_courses: admin, manage_covers: admin, manage_system: role === 'super_admin' },
   }
 }

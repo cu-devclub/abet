@@ -99,6 +99,7 @@ type MeResult struct {
 	ManageUsers   bool
 	ManageCourses bool
 	ManageCovers  bool
+	ManageSystem  bool
 }
 
 type GetMeUseCase interface {

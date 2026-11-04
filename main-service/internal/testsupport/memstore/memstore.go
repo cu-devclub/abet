@@ -52,11 +52,23 @@ func (s *Store) Put(_ context.Context, key string, r io.Reader, _ int64, ct stri
 }
 
 func (s *Store) PutFile(ctx context.Context, key, localPath, ct string) error {
+	return s.PutFileMeta(ctx, key, localPath, ct, nil)
+}
+
+func (s *Store) PutFileMeta(ctx context.Context, key, localPath, ct string, meta map[string]string) error {
 	b, err := os.ReadFile(localPath)
 	if err != nil {
 		return err
 	}
-	return s.Put(ctx, key, bytes.NewReader(b), int64(len(b)), ct)
+	if err := s.Put(ctx, key, bytes.NewReader(b), int64(len(b)), ct); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	o := s.objs[key]
+	o.info.Meta = meta
+	s.objs[key] = o
+	return nil
 }
 
 func (s *Store) Get(_ context.Context, key string) (io.ReadCloser, port.ObjectInfo, error) {

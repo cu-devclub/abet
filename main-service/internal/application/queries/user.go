@@ -62,5 +62,6 @@ func (h *GetMeHandler) Execute(ctx context.Context, actor *domain.Actor) (*port.
 		ManageUsers:   privileged,
 		ManageCourses: actor.CanManageCoursesAny(),
 		ManageCovers:  actor.CanManageCoursesAny(),
+		ManageSystem:  actor.CanManageSystem(),
 	}, nil
 }

@@ -71,6 +71,9 @@ func (a *Actor) isAdmin() bool { return a.Role == RoleAdmin }
 // CanManageOrg: departments and curricula writes are super_admin only.
 func (a *Actor) CanManageOrg() bool { return a.isSuper() }
 
+// CanManageSystem: the System Config page (course template) is super_admin only.
+func (a *Actor) CanManageSystem() bool { return a.isSuper() }
+
 // CanManageUsers: may use the users management endpoints at all (super_admin or admin).
 func (a *Actor) CanManageUsers() bool { return a.isSuper() || a.isAdmin() }
 
